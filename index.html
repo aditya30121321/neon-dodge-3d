@@ -154,7 +154,7 @@
             </div>
             
             <div class="mt-6 flex gap-3 flex-wrap justify-center">
-                <button onclick="showMenu('duel-menu')" class="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded shadow-[0_0_15px_rgba(255,165,0,0.4)] transition-all hover:scale-105">DUELS</button>
+                <button id="btn-duels" onclick="showMenu('duel-menu')" class="px-8 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded shadow-[0_0_15px_rgba(255,165,0,0.4)] transition-all hover:scale-105">DUELS</button>
                 <button onclick="showMenu('custom-menu')" class="px-8 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded shadow-[0_0_15px_rgba(20,184,166,0.4)] transition-all hover:scale-105">CUSTOM SPEED</button>
             </div>
         </div>
@@ -335,7 +335,7 @@
         <!-- Duel Screen -->
         <div id="duel-menu" class="absolute inset-0 flex flex-col items-center justify-center bg-black/95 pointer-events-auto backdrop-blur-md hidden transition-opacity duration-300 z-50">
             <h2 class="text-4xl font-black text-orange-400 neon-text mb-6 mt-4">DUELS</h2>
-            <div class="bg-gray-900 border border-orange-500/60 rounded-xl p-6 max-w-md w-full mx-4 flex flex-col gap-4">
+            <div id="duel-connect-view" class="bg-gray-900 border border-orange-500/60 rounded-xl p-6 max-w-md w-full mx-4 flex flex-col gap-4">
                 <button onclick="hostDuel()" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded transition-all">HOST A DUEL</button>
                 <div class="text-center">
                     <p class="text-xs text-gray-400 uppercase mb-1">Room Code</p>
@@ -348,6 +348,19 @@
                 <p class="text-xs text-center text-gray-500">Pure skill: no upgrades, no shields, same hitbox for every ship, same obstacles for both players, no rewards.</p>
                 <p id="duel-status-text" class="text-sm text-center text-gray-300"></p>
             </div>
+            <div id="duel-lobby-view" class="hidden bg-gray-900 border border-orange-500/60 rounded-xl p-6 max-w-md w-full mx-4 flex flex-col gap-4">
+                <p class="text-xs text-gray-400 uppercase text-center tracking-widest">Lobby - stays open until you leave it</p>
+                <div class="grid grid-cols-[1fr_3.5rem_3.5rem_3.5rem] gap-y-2 items-center text-center">
+                    <span></span><span class="text-[10px] font-bold text-green-400 tracking-wider">WINS</span><span class="text-[10px] font-bold text-yellow-400 tracking-wider">DRAWS</span><span class="text-[10px] font-bold text-red-400 tracking-wider">LOSSES</span>
+                    <span id="lobby-me-name" class="text-left font-bold text-cyan-300 truncate pr-2"></span>
+                    <span id="lobby-me-w" class="text-2xl font-black text-green-400">0</span><span id="lobby-me-d" class="text-2xl font-black text-yellow-400">0</span><span id="lobby-me-l" class="text-2xl font-black text-red-400">0</span>
+                    <span id="lobby-op-name" class="text-left font-bold text-orange-300 truncate pr-2"></span>
+                    <span id="lobby-op-w" class="text-2xl font-black text-green-400">0</span><span id="lobby-op-d" class="text-2xl font-black text-yellow-400">0</span><span id="lobby-op-l" class="text-2xl font-black text-red-400">0</span>
+                </div>
+                <p id="lobby-status" class="text-sm text-center text-gray-300"></p>
+                <button id="btn-lobby-start" onclick="lobbyStart()" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded transition-all">START MATCH</button>
+                <button onclick="leaveLobby()" class="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded transition-all">LEAVE LOBBY (disconnect)</button>
+            </div>
             <button onclick="showMenu('main-menu')" class="px-8 py-3 mt-6 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded transition-all">BACK TO MENU</button>
         </div>
 
@@ -359,11 +372,11 @@
                 <input id="custom-speed" type="range" min="0.5" max="3" step="0.1" value="1" class="w-full" oninput="document.getElementById('custom-speed-label').innerText=(+this.value).toFixed(1)+'x'">
                 <div class="flex justify-between text-xs text-gray-500 font-bold"><span>0.5x CHILL</span><span>3.0x INSANE</span></div>
                 <div class="flex gap-2">
-                    <button id="cp-pure" onclick="setCustomPower(false)" class="flex-1 py-2 rounded font-bold bg-teal-600 text-white transition-all">PURE</button>
-                    <button id="cp-power" onclick="setCustomPower(true)" class="flex-1 py-2 rounded font-bold bg-gray-800 text-gray-400 transition-all">POWER-UPS</button>
+                    <button id="cp-pure" onclick="setCustomSkills(false)" class="flex-1 py-2 rounded font-bold bg-teal-600 text-white transition-all">PURE</button>
+                    <button id="cp-skills" onclick="setCustomSkills(true)" class="flex-1 py-2 rounded font-bold bg-gray-800 text-gray-400 transition-all">SKILLS</button>
                 </div>
                 <p id="cp-desc" class="text-xs text-center text-gray-400">Pure: just obstacles and your reflexes.</p>
-                <p class="text-xs text-center text-gray-500">Practice mode: constant speed, no upgrades. No credits, cores, quests, high scores or stats are earned. Sliding blocks are removed above 1.5x.</p>
+                <p class="text-xs text-center text-gray-500">Practice mode: constant speed. No credits, cores, quests, high scores or stats are earned. Sliding blocks are removed above 1.5x.</p>
                 <button onclick="startCustom()" class="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded transition-all">START</button>
             </div>
             <button onclick="showMenu('main-menu')" class="px-8 py-3 mt-6 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded transition-all">BACK TO MENU</button>
@@ -384,7 +397,7 @@
 
         <!-- Game Over Screen -->
         <div id="game-over-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 pointer-events-auto backdrop-blur-md hidden transition-opacity duration-300 z-40">
-            <h1 class="text-6xl md:text-8xl font-black text-rose-500 neon-text-red mb-2 tracking-tighter">SYSTEM FAILURE</h1>
+            <h1 id="go-title" class="text-6xl md:text-8xl font-black text-rose-500 neon-text-red mb-2 tracking-tighter">SYSTEM FAILURE</h1>
             <p id="final-score" class="text-3xl text-cyan-400 neon-text mb-2">Final Score: 0</p>
             <p id="highscore-notice" class="text-xl text-yellow-400 font-bold mb-4 hidden animate-pulse">NEW HIGHSCORE!</p>
             <p id="run-stats" class="text-sm text-gray-300 mb-1 font-mono"></p>
@@ -394,7 +407,9 @@
                 <p id="game-over-reward-core" class="text-blue-400">+0 CORES</p>
             </div>
             <p id="duel-status" class="hidden text-2xl font-black text-fuchsia-400 neon-text-fuchsia mb-4 text-center px-4"></p>
+            <p id="duel-record" class="hidden text-sm font-bold text-gray-300 mb-4 font-mono text-center px-4"></p>
             <button id="btn-play-again" onclick="playAgain()" class="px-8 py-4 mb-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg text-xl transition-all shadow-[0_0_20px_rgba(0,255,255,0.5)] hover:scale-105">PLAY AGAIN (R)</button>
+            <button id="btn-to-lobby" onclick="showMenu('duel-menu')" class="hidden px-8 py-3 mb-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-lg transition-all">BACK TO LOBBY</button>
             <button onclick="showMenu('main-menu')" class="px-8 py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg text-xl transition-all shadow-[0_0_20px_rgba(255,0,85,0.5)] hover:scale-105">
                 RETURN TO HUB
             </button>
@@ -932,6 +947,9 @@
         let lastMode = 'campaign';
         const duel = { match:false, peer:null, conn:null, isHost:false, seed:0, opName:'Opponent', opSkin:100, opScore:0, opX:0, opSpeed:1, opDead:false, myDead:false, myScore:0, myRematch:false, opRematch:false, lastSend:0, ghost:null, spectating:false, countdown:false };
         let duelRng = Math.random;
+        let duelNetTimer = null;
+        Object.assign(duel, { inLobby:false, rec:{ w:0, d:0, l:0 }, code:'' });
+        const STEP = 1 / 60; // fixed simulation step used in duels so both players see the identical world
         const byId = id => document.getElementById(id);
         function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
         function duelRand(){ return duel.match ? duelRng() : Math.random(); }
@@ -983,11 +1001,9 @@
                 if (duel.spectating) byId('spectate-text').innerText = `${duel.opName} - ${op}  (you: ${duel.myScore})`;
             } else el.classList.add('hidden');
         }
-        function endDuel(){
-            const c = duel.conn, p = duel.peer;
-            duel.conn = null; duel.peer = null; duel.match = false; duel.spectating = false; duel.countdown = false; duel.starting = false;
-            try { if (c) c.close(); } catch(e){}
-            try { if (p) p.destroy(); } catch(e){}
+        function resetMatchState(){
+            clearInterval(duel.watch);
+            duel.match = false; duel.spectating = false; duel.countdown = false; duel.starting = false;
             removeGhost();
             const sb = byId('spectate-bar'); if (sb) sb.classList.add('hidden');
             const cd = byId('duel-countdown'); if (cd) cd.classList.add('hidden');
@@ -995,6 +1011,60 @@
             if (player) player.visible = true;
             updateDuelHUD();
         }
+        // Leave the match but keep the lobby connection alive. Quitting an unfinished match counts as a loss.
+        function leaveMatch(keepReady){
+            if (duel.match && !duel.counted) {
+                duel.counted = true;
+                duelSend({ t:'left' });
+                if (duel.conn) recordDuel('l');
+            }
+            if (!keepReady && duel.myRematch) { duel.myRematch = false; duelSend({ t:'unready' }); }
+            resetMatchState();
+            updateLobbyUI();
+        }
+        // Full teardown: disconnects from the opponent and forgets the lobby and its record.
+        function closeLobby(){
+            clearTimeout(duelNetTimer);
+            const c = duel.conn, p = duel.peer;
+            duel.conn = null; duel.peer = null; duel.inLobby = false; duel.code = '';
+            duel.rec = { w:0, d:0, l:0 }; duel.myRematch = false; duel.opRematch = false;
+            try { if (c) c.close(); } catch(e){}
+            try { if (p) p.destroy(); } catch(e){}
+            resetMatchState();
+            updateLobbyUI();
+        }
+        function endDuel(){ closeLobby(); }
+
+        function recordDuel(r){ duel.rec[r]++; updateLobbyUI(); }
+        function recordText(){
+            const r = duel.rec;
+            return `LOBBY RECORD   You ${r.w}W-${r.d}D-${r.l}L   |   ${duel.opName} ${r.l}W-${r.d}D-${r.w}L`;
+        }
+        function updateDuelsButton(){
+            const b = byId('btn-duels'); if (b) b.innerText = duel.inLobby ? 'DUELS \u2022 LOBBY' : 'DUELS';
+        }
+        function updateLobbyUI(){
+            updateDuelsButton();
+            const lv = byId('duel-lobby-view'), cv = byId('duel-connect-view');
+            if (!lv || !cv) return;
+            lv.classList.toggle('hidden', !duel.inLobby);
+            cv.classList.toggle('hidden', !!duel.inLobby);
+            if (!duel.inLobby) return;
+            const r = duel.rec, set = (id, v) => { byId(id).innerText = v; };
+            set('lobby-me-name', userData.username + ' (you)'); set('lobby-op-name', duel.opName);
+            set('lobby-me-w', r.w); set('lobby-me-d', r.d); set('lobby-me-l', r.l);
+            set('lobby-op-w', r.l); set('lobby-op-d', r.d); set('lobby-op-l', r.w);
+            const b = byId('btn-lobby-start'), st = byId('lobby-status');
+            if (duel.myRematch) { b.innerText = duel.opRematch ? 'STARTING...' : 'READY - CLICK TO CANCEL'; st.innerText = duel.opRematch ? '' : `Waiting for ${duel.opName} to press start...`; }
+            else { b.innerText = duel.opRematch ? `${duel.opName} IS READY - START MATCH` : 'START MATCH'; st.innerText = duel.opRematch ? `${duel.opName} is waiting for you.` : 'Both players press start to begin.'; }
+        }
+        window.lobbyStart = function(){
+            if (!duel.inLobby || !duel.conn) return;
+            if (duel.myRematch) { duel.myRematch = false; duelSend({ t:'unready' }); updateLobbyUI(); return; }
+            duel.myRematch = true; duelSend({ t:'rematch' }); updateLobbyUI();
+            if (duel.isHost && duel.opRematch) startDuelRound();
+        };
+        window.leaveLobby = function(){ closeLobby(); renderDuelMenu(); };
 
         // Spectating after a crash: the world keeps running (same seed, opponent's speed) and the camera follows them
         function startSpectate(){
@@ -1012,25 +1082,29 @@
             setupGameOverDuelUI();
             window.showMenu('game-over-screen');
         }
-        function spectateTick(dr){
-            currentSpeed = duel.opSpeed || currentSpeed;
-            const estT = Math.max(0, (currentSpeed - BASE_SPEED) / 0.015);
-            currentSpawnRate = Math.max(15, BASE_SPAWN_RATE - estT * 0.5);
+        function spectateTick(delta){
+            duel.acc = Math.min((duel.acc || 0) + delta, 0.25);
+            while (duel.acc >= STEP && duel.spectating) { duel.acc -= STEP; spectateStep(); }
+            camera.position.x += (duel.opX * 0.6 - camera.position.x) * (1 - Math.pow(0.9, delta * 60));
+        }
+        function spectateStep(){
+            timeAlive += STEP;
+            currentSpeed = calcSpeed(timeAlive);
+            currentSpawnRate = calcSpawn(timeAlive);
             const idx = Math.floor(duel.opScore / SCORE_PER_MAP_CHANGE) % MAP_THEMES.length;
             if (idx !== currentMapIndex) setMapTheme(idx, true);
-            grid.position.z += currentSpeed * dr;
+            grid.position.z += currentSpeed;
             if (grid.position.z > -45) grid.position.z -= 5;
-            tunnelRings.forEach((r, i) => { r.rotation.z += 0.008 * (i % 2 === 0 ? 1 : -1) * dr; });
-            frameCounter += dr;
+            tunnelRings.forEach((r, i) => { r.rotation.z += 0.008 * (i % 2 === 0 ? 1 : -1); });
+            frameCounter += 1;
             if (frameCounter >= currentSpawnRate) { spawnObstacle(); frameCounter = 0; }
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const o = obstacles[i];
-                o.mesh.position.z += currentSpeed * dr; applySlide(o);
-                if (o.type === 'credit') { o.mesh.rotation.x += 0.05 * dr; o.mesh.rotation.y += 0.05 * dr; }
-                else if (o.type === 'core') { o.mesh.rotation.y += 0.08 * dr; }
+                o.mesh.position.z += currentSpeed; applySlide(o);
+                if (o.type === 'credit') { o.mesh.rotation.x += 0.05; o.mesh.rotation.y += 0.05; }
+                else if (o.type === 'core') { o.mesh.rotation.y += 0.08; }
                 if (o.mesh.position.z > 10) { mapGroup.remove(o.mesh); obstacles.splice(i, 1); }
             }
-            camera.position.x += (duel.opX * 0.6 - camera.position.x) * (1 - Math.pow(0.9, dr));
         }
 
         function runCountdown(done){
@@ -1040,18 +1114,21 @@
             const tick = () => {
                 if (!duel.match) { el.classList.add('hidden'); duel.countdown = false; return; }
                 if (n > 0) { el.innerText = n; el.classList.remove('hidden'); window.playSFX('click'); n--; setTimeout(tick, 700); }
-                else { el.innerText = 'GO!'; window.playSFX('core'); duel.countdown = false; done(); setTimeout(() => el.classList.add('hidden'), 500); }
+                else { el.innerText = 'GO!'; window.playSFX('core'); duel.countdown = false; duel.lastScoreRx = performance.now(); done(); setTimeout(() => el.classList.add('hidden'), 500); }
             };
             tick();
         }
 
         function renderDuelMenu(){
-            endDuel();
-            byId('duel-code').innerText = '— — — — —';
-            byId('duel-code-input').value = '';
-            duelStatus("Host a duel, or enter a friend's code to join.");
+            leaveMatch(true);
+            if (!duel.inLobby) {
+                const hosting = duel.isHost && duel.peer && duel.code;
+                byId('duel-code').innerText = hosting ? duel.code : '\u2014 \u2014 \u2014 \u2014 \u2014';
+                if (!duel.peer) { byId('duel-code-input').value = ''; duelStatus("Host a duel, or enter a friend's code to join."); }
+            }
+            updateLobbyUI();
         }
-                window.copyDuelCode = function(){
+        window.copyDuelCode = function(){
             const c = byId('duel-code').innerText;
             if (!/^[A-Z0-9]{5}$/.test(c)) return;
             try { navigator.clipboard.writeText(c); duelStatus('Code copied! Waiting for opponent...'); } catch(e){}
@@ -1061,11 +1138,10 @@
         // To use your own relay, define window.NEON_ICE_SERVERS = [...] before this script.
         const ICE_SERVERS = window.NEON_ICE_SERVERS || [
             { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478', 'stun:global.stun.twilio.com:3478'] },
+            { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
             { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' },
-            { urls: 'turns:freestun.net:5349', username: 'free', credential: 'free' }
+            { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
         ];
         const PEER_OPTS = { debug: 1, config: { iceServers: ICE_SERVERS, iceCandidatePoolSize: 4 } };
         function duelErrMsg(e){
@@ -1077,47 +1153,87 @@
         }
         function duelPeerError(e){ duelStatus(duelErrMsg(e)); }
 
-        window.hostDuel = function(){
-            if (typeof Peer === 'undefined') { duelStatus('PeerJS failed to load.'); return; }
+        function newDuelCode(){
+            const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
+            for (let i = 0; i < 5; i++) c += A[Math.floor(Math.random() * A.length)];
+            return c;
+        }
+        window.hostDuel = function(attempt){
+            if (typeof Peer === 'undefined') { duelStatus('PeerJS failed to load. Check your connection and reload the page.'); return; }
+            attempt = typeof attempt === 'number' ? attempt : 0;
             endDuel(); duel.isHost = true;
             duelStatus('Contacting matchmaking server...');
-            const code = Math.random().toString(36).slice(2, 7).toUpperCase();
+            const code = newDuelCode();
             const peer = new Peer('nd3d-' + code, PEER_OPTS);
             duel.peer = peer;
-            peer.on('open', () => { byId('duel-code').innerText = code; duelStatus('Share this code (click it to copy). Waiting for opponent...'); });
-            peer.on('connection', c => { duelStatus('Opponent joined! Connecting...'); setupConn(c); });
+            duelNetTimer = setTimeout(() => {
+                if (duel.peer !== peer || peer.open) return;
+                if (attempt < 2) { duelStatus('Matchmaking server is slow, retrying...'); window.hostDuel(attempt + 1); }
+                else duelStatus('Could not reach the matchmaking server. Check your connection and press HOST again.');
+            }, 9000);
+            peer.on('open', () => { clearTimeout(duelNetTimer); duel.code = code; byId('duel-code').innerText = code; duelStatus('Share this code (click it to copy). Waiting for opponent...'); });
+            peer.on('connection', c => {
+                duelStatus('Opponent joined! Connecting...');
+                setupConn(c);
+                clearTimeout(duelNetTimer);
+                duelNetTimer = setTimeout(() => {
+                    if (duel.peer !== peer || (duel.conn && duel.conn.open)) return;
+                    const stuck = duel.conn; duel.conn = null;
+                    try { if (stuck) stuck.close(); } catch(e){}
+                    duelStatus('Opponent could not connect directly. Waiting for them to retry...');
+                }, 15000);
+            });
             peer.on('disconnected', () => { if (duel.peer === peer && !peer.destroyed) { try { peer.reconnect(); } catch(e){} } });
-            peer.on('error', e => { if (duel.peer !== peer) return; if (e.type === 'unavailable-id') window.hostDuel(); else duelPeerError(e); });
+            peer.on('error', e => { if (duel.peer !== peer) return; if (e.type === 'unavailable-id') window.hostDuel(attempt); else duelPeerError(e); });
         };
         window.joinDuel = function(){
             const code = byId('duel-code-input').value.replace(/\s/g, '').toUpperCase();
             if (!code) return;
-            if (typeof Peer === 'undefined') { duelStatus('PeerJS failed to load.'); return; }
+            if (typeof Peer === 'undefined') { duelStatus('PeerJS failed to load. Check your connection and reload the page.'); return; }
             endDuel(); duel.isHost = false;
             duelStatus('Contacting matchmaking server...');
             const peer = new Peer(undefined, PEER_OPTS);
             duel.peer = peer;
-            peer.on('open', () => {
-                duelStatus('Connecting to host...');
+            let tries = 0;
+            const connectToHost = () => {
+                if (duel.peer !== peer) return;
+                tries++;
+                duelStatus(tries === 1 ? 'Connecting to host...' : `Retrying connection (${tries}/3)...`);
+                if (duel.conn) { const old = duel.conn; duel.conn = null; try { old.close(); } catch(e){} }
                 setupConn(peer.connect('nd3d-' + code, { reliable: true, serialization: 'json' }));
-                setTimeout(() => {
-                    if (duel.peer === peer && !(duel.conn && duel.conn.open)) {
-                        duelStatus('Retrying connection...');
-                        try { if (duel.conn) { const old = duel.conn; duel.conn = null; old.close(); } } catch(e){}
-                        setupConn(peer.connect('nd3d-' + code, { reliable: true, serialization: 'json' }));
-                    }
-                }, 10000);
-            });
+                clearTimeout(duelNetTimer);
+                duelNetTimer = setTimeout(() => {
+                    if (duel.peer !== peer || (duel.conn && duel.conn.open)) return;
+                    if (tries < 3) connectToHost();
+                    else duelStatus('Could not connect. Make sure the host is still on the Duels screen, then try again (or swap who hosts).');
+                }, 12000);
+            };
+            duelNetTimer = setTimeout(() => {
+                if (duel.peer === peer && !peer.open) duelStatus('Matchmaking server is not responding. Check your connection and try again.');
+            }, 12000);
+            peer.on('open', () => { clearTimeout(duelNetTimer); connectToHost(); });
             peer.on('error', e => { if (duel.peer === peer) duelPeerError(e); });
         };
+        function opponentGone(msg, force){
+            if (!duel.match || duel.counted) return;
+            if (!duel.opDead || force) {
+                duel.opDead = true; duel.opLeft = true; // quitting mid-match is a forfeit
+                duelToast(msg); updateDuelHUD();
+                if (duel.spectating) { endSpectate(); return; }
+            }
+            checkDuelResult();
+            const b = byId('btn-play-again'); if (b && duel.myDead && !duel.conn) b.classList.add('hidden');
+        }
         function setupConn(c){
             if (duel.conn) { c.close(); return; }
             duel.conn = c;
+            duel.rec = { w:0, d:0, l:0 }; duel.myRematch = false; duel.opRematch = false; duel.inLobby = false;
             let greeted = false;
             const onOpen = () => {
                 if (greeted) return; greeted = true;
+                clearTimeout(duelNetTimer);
                 duelSend({ t:'hello', name:userData.username, skin:userData.currentSkinId });
-                duelStatus('Connected! Starting...');
+                duelStatus('Connected!');
             };
             c.on('open', onOpen);
             if (c.open) onOpen();
@@ -1126,13 +1242,14 @@
             c.on('iceStateChanged', st => { if (st === 'failed' && duel.conn === c && !duel.match) duelStatus(duelErrMsg({ type:'webrtc' })); });
             c.on('close', () => {
                 if (duel.conn !== c) return;
-                duel.conn = null; duel.opDead = true;
-                if (duel.match) {
-                    duelToast(`${duel.opName} disconnected`);
-                    updateDuelHUD();
-                    if (duel.spectating) endSpectate();
-                    else { checkDuelResult(); const b = byId('btn-play-again'); if (b && duel.myDead) b.classList.add('hidden'); }
-                } else duelStatus('Opponent disconnected.');
+                duel.conn = null;
+                duel.inLobby = false; duel.opRematch = false; duel.myRematch = false;
+                if (duel.match) opponentGone(`${duel.opName} disconnected`);
+                else {
+                    duelStatus(duel.isHost && duel.peer ? 'Opponent left. Your room code is still open for a new opponent.' : 'The lobby was closed by the host.');
+                    duelToast(`${duel.opName} left the lobby`);
+                }
+                updateLobbyUI();
             });
         }
         function onDuelData(d){
@@ -1140,17 +1257,20 @@
             if (d.t === 'hello') {
                 duel.opName = d.name || 'Opponent';
                 duel.opSkin = d.skin != null ? d.skin : 100;
-                if (duel.isHost && !duel.match && !duel.starting) { duel.starting = true; startDuelRound(); }
+                if (!duel.inLobby) { duel.inLobby = true; duel.rec = { w:0, d:0, l:0 }; duelToast(`${duel.opName} is in the lobby`); }
+                updateLobbyUI();
             }
-            else if (d.t === 'start') { duel.seed = d.seed; beginDuel(); }
-            else if (d.t === 'score') { duel.opScore = d.s; if (d.x != null) duel.opX = d.x; if (d.v) duel.opSpeed = d.v; updateDuelHUD(); }
+            else if (d.t === 'start') { if (!duel.myRematch) return; duel.seed = d.seed; beginDuel(); }
+            else if (d.t === 'unready') { duel.opRematch = false; updateLobbyUI(); }
+            else if (d.t === 'left') { opponentGone(`${duel.opName} left the match`, true); }
+            else if (d.t === 'score') { duel.lastScoreRx = performance.now(); duel.opScore = d.s; if (d.x != null) duel.opX = d.x; if (d.v) duel.opSpeed = d.v; updateDuelHUD(); }
             else if (d.t === 'dead') {
                 duel.opDead = true; duel.opScore = d.s;
                 duelToast(`${duel.opName} crashed at ${d.s}!`);
                 updateDuelHUD();
                 if (duel.spectating) endSpectate(); else checkDuelResult();
             }
-            else if (d.t === 'rematch') { duel.opRematch = true; if (duel.isHost && duel.myRematch) startDuelRound(); }
+            else if (d.t === 'rematch') { duel.opRematch = true; updateLobbyUI(); if (duel.isHost && duel.myRematch && duel.inLobby) startDuelRound(); }
         }
         function startDuelRound(){
             duel.seed = Math.floor(Math.random() * 2147483647);
@@ -1158,7 +1278,16 @@
             beginDuel();
         }
         function beginDuel(){
-            Object.assign(duel, { opScore:0, opX:0, opSpeed:1, opDead:false, myDead:false, myScore:0, myRematch:false, opRematch:false, spectating:false, counted:false, starting:false });
+            Object.assign(duel, { opScore:0, opX:0, opSpeed:1, opDead:false, opLeft:false, myDead:false, myScore:0, myRematch:false, opRematch:false, spectating:false, counted:false, starting:false, acc:0, lastScoreRx:performance.now() });
+            clearInterval(duel.watch);
+            duel.watch = setInterval(() => {
+                if (!duel.match || duel.opDead || !duel.conn || duel.countdown) return;
+                if (performance.now() - (duel.lastScoreRx || 0) > 8000) {
+                    const c = duel.conn;
+                    opponentGone(`${duel.opName} stopped responding`);
+                    try { if (c) c.close(); } catch(e){}
+                }
+            }, 1000);
             byId('spectate-bar').classList.add('hidden');
             setupGhost();
             startGame('duel');
@@ -1167,26 +1296,44 @@
             updateDuelHUD();
             runCountdown(() => { isPlaying = true; });
         }
+        function setGoTitle(kind){
+            const t = byId('go-title'); if (!t) return;
+            const map = { win:['VICTORY', '#4ade80', 'rgba(74,222,128,.8)'], draw:['DRAW', '#facc15', 'rgba(250,204,21,.8)'] };
+            const m = map[kind];
+            if (!m) { t.innerText = 'SYSTEM FAILURE'; t.style.color = ''; t.style.textShadow = ''; return; }
+            t.innerText = m[0]; t.style.color = m[1]; t.style.textShadow = `0 0 10px ${m[2]}, 0 0 20px ${m[2]}`;
+        }
         function checkDuelResult(){
             if (!duel.match || !duel.myDead) return;
             const el = byId('duel-status'), op = Math.floor(duel.opScore);
             if (!duel.opDead) { el.innerText = `Waiting for ${duel.opName}... (them: ${op} / you: ${duel.myScore})`; return; }
+            const won = duel.opLeft || duel.myScore > op, draw = !duel.opLeft && duel.myScore === op;
             if (!duel.counted) {
                 duel.counted = true;
-                const ls = userData.lifetimeStats;
-                ls.duelsPlayed = (ls.duelsPlayed || 0) + 1;
-                if (duel.myScore > op) ls.duelsWon = (ls.duelsWon || 0) + 1;
-                ensureQuests();
-                userData.questProgress.q_duel.p = ls.duelsPlayed;
-                userData.questProgress.q_duelwin.p = ls.duelsWon || 0;
-                saveUserData();
+                recordDuel(won ? 'w' : draw ? 'd' : 'l');
+                if (!duel.opLeft) {
+                    const ls = userData.lifetimeStats;
+                    ls.duelsPlayed = (ls.duelsPlayed || 0) + 1;
+                    if (won) ls.duelsWon = (ls.duelsWon || 0) + 1;
+                    ensureQuests();
+                    userData.questProgress.q_duel.p = ls.duelsPlayed;
+                    userData.questProgress.q_duelwin.p = ls.duelsWon || 0;
+                    saveUserData();
+                }
             }
-            el.innerText = duel.myScore > op ? `VICTORY! ${duel.myScore} vs ${op}`
-                         : duel.myScore < op ? `DEFEAT... ${duel.myScore} vs ${op}`
-                         : `DRAW! ${duel.myScore} each`;
+            el.innerText = duel.opLeft ? `VICTORY! ${duel.opName} left the duel`
+                         : won ? `VICTORY! ${duel.myScore} vs ${op}`
+                         : draw ? `DRAW! ${duel.myScore} each`
+                         : `DEFEAT... ${duel.myScore} vs ${op}`;
+            setGoTitle(won ? 'win' : draw ? 'draw' : null);
+            const rc = byId('duel-record'); if (rc) { rc.innerText = recordText(); rc.classList.remove('hidden'); }
+            const lb = byId('btn-to-lobby'); if (lb) lb.classList.toggle('hidden', !duel.conn);
         }
         function setupGameOverDuelUI(){
             const st = byId('duel-status'), btn = byId('btn-play-again');
+            setGoTitle(null);
+            const rc = byId('duel-record'); if (rc) { rc.classList.toggle('hidden', !duel.match); if (duel.match) rc.innerText = recordText(); }
+            const lb = byId('btn-to-lobby'); if (lb) lb.classList.add('hidden');
             btn.innerText = duel.match ? 'REMATCH (R)' : 'PLAY AGAIN (R)';
             btn.classList.toggle('hidden', duel.match && !duel.conn);
             st.classList.toggle('hidden', !duel.match);
@@ -1337,14 +1484,31 @@
         }
 
         const DUEL_HITBOX = new THREE.Vector3(2, 1.4, 2);
+        // Difficulty curve for endless/duel runs: speed eases toward a cap instead of climbing forever,
+        // and obstacles never spawn faster than a human can steer between them.
+        const SPEED_RAMP = 1.8, SPEED_TAU = 110, MIN_SPAWN_FRAMES = 30;
+        function calcSpeed(t){
+            if (customRun) return BASE_SPEED;
+            if (gameMode === 'campaign') return BASE_SPEED + t * 0.015;
+            return BASE_SPEED + SPEED_RAMP * (1 - Math.exp(-t / SPEED_TAU));
+        }
+        function calcSpawn(t){
+            if (customRun) return BASE_SPAWN_RATE;
+            if (gameMode === 'campaign') return Math.max(15, BASE_SPAWN_RATE - t * 0.5);
+            return Math.max(MIN_SPAWN_FRAMES, BASE_SPAWN_RATE - t * 0.2);
+        }
+        let lastEnemyX = 0;
 
         // --- VARIETY: wall gaps, sliders, coin trails, power-ups ---
-        let customRun = false, customSpeed = 1, customPower = false;
-        window.setCustomPower = function(v){
-            customPower = !!v;
-            byId('cp-pure').className = 'flex-1 py-2 rounded font-bold transition-all ' + (customPower ? 'bg-gray-800 text-gray-400' : 'bg-teal-600 text-white');
-            byId('cp-power').className = 'flex-1 py-2 rounded font-bold transition-all ' + (customPower ? 'bg-teal-600 text-white' : 'bg-gray-800 text-gray-400');
-            byId('cp-desc').innerText = customPower ? 'Power-ups: Slow-Mo, Magnet and Shield rings appear during the run.' : 'Pure: just obstacles and your reflexes.';
+        let customRun = false, customSpeed = 1, customSkills = false;
+        window.setCustomSkills = function(v){
+            customSkills = !!v;
+            byId('cp-pure').className = 'flex-1 py-2 rounded font-bold transition-all ' + (customSkills ? 'bg-gray-800 text-gray-400' : 'bg-teal-600 text-white');
+            byId('cp-skills').className = 'flex-1 py-2 rounded font-bold transition-all ' + (customSkills ? 'bg-teal-600 text-white' : 'bg-gray-800 text-gray-400');
+            const n = (userData.unlockedSkills || []).length;
+            byId('cp-desc').innerText = customSkills
+                ? (n ? `Skills: your ${n} unlocked skill-tree upgrades apply (hitbox, steering, shields, slow, magnet, close-call bonus...).` : 'Skills: you have not unlocked any skills yet, so this plays like Pure. Buy some in the Skills menu.')
+                : 'Pure: just obstacles and your reflexes.';
         };
         window.startCustom = function(){ customSpeed = parseFloat(byId('custom-speed').value) || 1; startGame('custom'); };
         let powers = { slow: 0, magnet: 0 };
@@ -1359,7 +1523,7 @@
             obstacles.push(o); return o;
         }
         function applySlide(o) {
-            if (o.slide) o.mesh.position.x = Math.max(-BOUNDARY - 2, Math.min(BOUNDARY + 2, o.slide.base + Math.sin(o.mesh.position.z * 0.07 + o.slide.ph) * o.slide.amp));
+            if (o.slide) o.mesh.position.x = Math.max(-BOUNDARY - 2, Math.min(BOUNDARY + 2, o.slide.base + Math.sin(o.mesh.position.z * (0.09 / o.slide.amp) + o.slide.ph) * o.slide.amp));
         }
         function spawnPattern() {
             const k = 0.34 + duelRand() * 0.66;
@@ -1397,7 +1561,10 @@
             qp.q_skill.p = qp.q_skill2.p = (userData.unlockedSkills || []).length;
             qp.q_skin.p = qp.q_skin2.p = (userData.unlockedSkins || []).length;
         }
-        function comboWindow(){ return 2.5 + (gameMode === 'endless_pure' ? 0 : (playerStats.comboTime || 0)); }
+        // Skill-tree bonuses apply everywhere except Pure Endless and Duels (and Custom runs unless SKILLS is selected)
+        function skillsOn(){ return gameMode !== 'endless_pure' || (customRun && customSkills); }
+        function ps(stat){ return skillsOn() ? (playerStats[stat] || 0) : 0; }
+        function comboWindow(){ return 2.5 + ps('comboTime'); }
 
         // --- HOME SCREEN ATTRACT MODE: a bot plays in the background behind the blurred menu ---
         let demoActive = false, demoObs = [], demoT = 0, demoSpawn = 0, demoThemeT = 0;
@@ -1523,6 +1690,7 @@
             if (menuLvl) menuLvl.innerText = userData.currentLevel;
             if (pbStd) pbStd.innerText = userData.highScoreStandard;
             if (pbPure) pbPure.innerText = userData.highScorePure;
+            updateDuelsButton();
             if (skillCreds) skillCreds.innerText = `CREDITS: ${Math.floor(userData.credits)}`;
             if (skillCores) skillCores.innerText = `CORES: ${userData.neonCores}`;
             if (skinCreds) skinCreds.innerText = `CREDITS: ${Math.floor(userData.credits)}`;
@@ -1574,7 +1742,8 @@
                 if (menuId === 'quests-menu') renderQuestsMenu();
                 if (menuId === 'profile-menu') renderProfileMenu();
                 if (menuId === 'duel-menu') renderDuelMenu();
-                if (menuId === 'main-menu') endDuel();
+                if (menuId === 'custom-menu') window.setCustomSkills(customSkills);
+                if (menuId === 'main-menu') leaveMatch();
             }
         };
 
@@ -2087,14 +2256,14 @@
             obstacles.forEach(obs => mapGroup.remove(obs.mesh));
             obstacles = [];
             
-            currentShields = gameMode === 'endless_pure' ? 0 : (playerStats.shield || 0);
+            currentShields = ps('shield');
             if(player.shieldMesh) player.shieldMesh.material.opacity = currentShields > 0 ? 0.4 : 0;
 
             setMapTheme(0, false);
             if (!customRun) userData.lifetimeStats.totalRuns++;
             paused = false;
             byId('pause-menu').classList.add('hidden');
-            powers = { slow: 0, magnet: 0 }; combo = 0; lastPickupT = -99; nearStreak = 0; lastNearT = -99; lastNearWall = -1; spawnCount = 0; wallSeq = 0; bestPassed = false; runStats.near = 0; runStats.maxCombo = 0;
+            powers = { slow: 0, magnet: 0 }; combo = 0; lastPickupT = -99; nearStreak = 0; lastNearT = -99; lastNearWall = -1; spawnCount = 0; lastEnemyX = 0; wallSeq = 0; bestPassed = false; runStats.near = 0; runStats.maxCombo = 0;
 
             const modeEl = document.getElementById('mode-display');
             const speedEl = document.getElementById('speed-display');
@@ -2110,7 +2279,7 @@
                 BASE_SPEED = customRun ? 1.2 * customSpeed : 1.2;
                 BASE_SPAWN_RATE = customRun ? Math.max(8, 50 / customSpeed) : 50;
                 targetScore = Infinity;
-                if (modeEl) modeEl.innerText = duel.match ? 'DUEL vs ' + duel.opName : (customRun ? 'CUSTOM ' + customSpeed.toFixed(1) + 'x ' + (customPower ? 'POWER-UPS' : 'PURE') + ' (NO PROGRESS)' : mode === 'endless_pure' ? 'PURE ENDLESS' : 'STANDARD ENDLESS');
+                if (modeEl) modeEl.innerText = duel.match ? 'DUEL vs ' + duel.opName : (customRun ? 'CUSTOM ' + customSpeed.toFixed(1) + 'x ' + (customSkills ? 'SKILLS' : 'PURE') + ' (NO PROGRESS)' : mode === 'endless_pure' ? 'PURE ENDLESS' : 'STANDARD ENDLESS');
             }
 
             currentSpeed = BASE_SPEED;
@@ -2350,14 +2519,16 @@
             if (gameMode === 'endless_pure' && !duel.match) qp.q_pure2.p = Math.max(qp.q_pure2.p, Math.floor(score));
         }
 
-        function gameOver() {
+        function gameOver(won) {
             isPlaying = false;
-            window.playSFX('hit');
-            
-            player.scale.set(1.5, 1.5, 1.5);
-            shake = 1.2; flash();
-            { const wp = new THREE.Vector3(); player.getWorldPosition(wp); const sk = skinsList.find(s => s.id === userData.currentSkinId) || skinsList[0]; burst(wp, sk.color, 60, 1.6); }
-            player.visible = false;
+            if (won) { window.playSFX('core'); flash(); }
+            else {
+                window.playSFX('hit');
+                player.scale.set(1.5, 1.5, 1.5);
+                shake = 1.2; flash();
+                { const wp = new THREE.Vector3(); player.getWorldPosition(wp); const sk = skinsList.find(s => s.id === userData.currentSkinId) || skinsList[0]; burst(wp, sk.color, 60, 1.6); }
+                player.visible = false;
+            }
             player.shieldMesh.material.opacity = 0;
             
             userData.credits += runCredits;
@@ -2425,19 +2596,19 @@
         function spawnObstacle() {
             spawnCount++;
             if (spawnCount > 4 && duelRand() < Math.min(0.5, 0.1 + spawnCount * 0.004)) { spawnPattern(); return; }
-            if (!duel.match && (gameMode !== 'endless_pure' || (customRun && customPower)) && Math.random() < 0.035) { spawnPower(); return; }
+            if (!duel.match && gameMode !== 'endless_pure' && Math.random() < 0.035) { spawnPower(); return; }
             const r = duelRand();
             let type = 'enemy';
             let mesh;
             
-            const statCoreRate = gameMode === 'endless_pure' ? 0 : playerStats.coreRate;
+            const statCoreRate = ps('coreRate');
             const coreChance = 0.01 + statCoreRate;
             
             if (r < coreChance) {
                 type = 'core';
                 mesh = new THREE.Mesh(coreGeo, coreMat);
                 mesh.scale.setScalar(1.2);
-            } else if (r < 0.25 + (gameMode === 'endless_pure' ? 0 : playerStats.coinRate)) { 
+            } else if (r < 0.25 + ps('coinRate')) { 
                 type = 'credit';
                 mesh = new THREE.Mesh(creditGeo, creditMat);
             } else {
@@ -2446,14 +2617,20 @@
                 mesh.scale.set(1 + duelRand() * 2, 1 + duelRand() * 3, 1);
             }
             
-            const randomX = (duelRand() - 0.5) * BOUNDARY * 2;
+            let randomX;
+            if (type === 'enemy') {
+                // each hazard stays within steering reach of the previous one, so a gap is always reachable
+                const hop = Math.max(4, Math.min(12, currentSpawnRate * 0.2));
+                randomX = Math.max(-BOUNDARY, Math.min(BOUNDARY, lastEnemyX + (duelRand() - 0.5) * 2 * hop));
+                lastEnemyX = randomX;
+            } else randomX = (duelRand() - 0.5) * BOUNDARY * 2;
             mesh.position.set(randomX, type === 'enemy' ? mesh.scale.y/2 - 1 : 0, -120); 
             mapGroup.add(mesh);
             obstacles.push({ mesh, type });
         }
 
         function updateEntities(deltaRatio = 1) {
-            const statSlow = gameMode === 'endless_pure' ? 0 : playerStats.enemySlow;
+            const statSlow = ps('enemySlow');
             const actualSpeed = currentSpeed * (1 - statSlow) * (powers.slow > timeAlive ? 0.6 : 1);
 
             for (let i = obstacles.length - 1; i >= 0; i--) {
@@ -2461,7 +2638,7 @@
                 obs.mesh.position.z += actualSpeed * deltaRatio;
                 applySlide(obs);
                 if (obs.type === 'power') { obs.mesh.rotation.x += 0.05 * deltaRatio; obs.mesh.rotation.y += 0.07 * deltaRatio; }
-                const pullLim = powers.magnet > timeAlive ? 9 : (gameMode !== 'endless_pure' ? playerStats.pullRange * 2 : 0);
+                const pullLim = powers.magnet > timeAlive ? 9 : ps('pullRange') * 2;
                 if (obs.type !== 'enemy' && obs.type !== 'power' && pullLim > 0 && obs.mesh.position.z > -50) {
                     const pdx = player.position.x - obs.mesh.position.x;
                     if (Math.abs(pdx) < pullLim) obs.mesh.position.x += pdx * 0.08 * deltaRatio;
@@ -2490,7 +2667,7 @@
                             return; 
                         }
                     } else if (obs.type === 'credit') {
-                        const statMult = gameMode === 'endless_pure' ? 0 : playerStats.creditMult;
+                        const statMult = ps('creditMult');
                         if (!duel.match && !customRun) runCredits += Math.floor(10 * (1 + statMult));
                         const t = timeAlive;
                         combo = (t - lastPickupT < comboWindow()) ? Math.min(combo + 1, 8) : 1;
@@ -2531,7 +2708,7 @@
                         if (obs.wallId) lastNearWall = obs.wallId;
                         nearStreak = (timeAlive - lastNearT < 5) ? Math.min(nearStreak + 1, 5) : 1;
                         lastNearT = timeAlive;
-                        const bonus = Math.round(15 * nearStreak * (1 + (gameMode === 'endless_pure' ? 0 : playerStats.nearMult)));
+                        const bonus = Math.round(15 * nearStreak * (1 + ps('nearMult')));
                         score += bonus; runStats.near++;
                         popup('CLOSE CALL +' + bonus, 'p-red'); window.playSFX('near');
                     }
@@ -2548,7 +2725,7 @@
         function checkCollision(obj1, obj2) {
             if (duel.match) playerBox.setFromCenterAndSize(obj1.position, DUEL_HITBOX); else playerBox.setFromObject(obj1);
             obstacleBox.setFromObject(obj2);
-            const statHitbox = gameMode === 'endless_pure' ? 0 : playerStats.hitbox;
+            const statHitbox = ps('hitbox');
             const shrink = -Math.min(0.55, 0.3 + statHitbox); 
             playerBox.expandByScalar(shrink); 
             return playerBox.intersectsBox(obstacleBox);
@@ -2557,10 +2734,10 @@
         function updateDifficulty(delta = 1/60, deltaRatio = 1) {
             timeAlive += delta; 
             
-            const statScore = gameMode === 'endless_pure' ? 0 : (playerStats.scoreMult || 0);
+            const statScore = ps('scoreMult');
             score += currentSpeed * 0.5 * (1 + statScore) * deltaRatio; 
-            currentSpeed = customRun ? BASE_SPEED : BASE_SPEED + (timeAlive * 0.015);
-            currentSpawnRate = customRun ? BASE_SPAWN_RATE : Math.max(15, BASE_SPAWN_RATE - (timeAlive * 0.5));
+            currentSpeed = calcSpeed(timeAlive);
+            currentSpawnRate = calcSpawn(timeAlive);
 
             const calculatedMapIndex = Math.floor(score / SCORE_PER_MAP_CHANGE) % MAP_THEMES.length;
             if (calculatedMapIndex !== currentMapIndex) {
@@ -2571,6 +2748,7 @@
             updateIngameUI();
 
             if (duel.match) sendDuelScore();
+            if (duel.match && duel.opDead && !duel.myDead && (duel.opLeft || Math.floor(score) > Math.floor(duel.opScore))) { gameOver(true); return; }
             if (gameMode === 'campaign' && score >= targetScore) {
                 levelComplete();
             }
@@ -2596,17 +2774,8 @@
             document.getElementById('btn-pause').classList.toggle('hidden', duel.match);
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-
-            const delta = Math.min(clock.getDelta(), 0.1);
-            const deltaRatio = delta * 60;
-
-            const wantDemo = !isPlaying && !duel.spectating && !duel.countdown && !document.getElementById('main-menu').classList.contains('hidden');
-            if (wantDemo && !demoActive) startDemo();
-            if (!wantDemo && demoActive) stopDemo();
-            if (isPlaying && !paused) {
-                const statSpeed = gameMode === 'endless_pure' ? 0 : playerStats.dodgeSpd;
+        function simStep(delta, deltaRatio) {
+                const statSpeed = ps('dodgeSpd');
                 const moveSpeed = (0.5 + statSpeed) * deltaRatio; 
                 
                 if (keys.left) targetX -= moveSpeed;
@@ -2642,8 +2811,24 @@
 
                 updateEntities(deltaRatio);
                 if(isPlaying) updateDifficulty(delta, deltaRatio); 
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = Math.min(clock.getDelta(), 0.1);
+            const deltaRatio = delta * 60;
+
+            const wantDemo = !isPlaying && !duel.spectating && !duel.countdown && !document.getElementById('main-menu').classList.contains('hidden');
+            if (wantDemo && !demoActive) startDemo();
+            if (!wantDemo && demoActive) stopDemo();
+            if (isPlaying && !paused) {
+                if (duel.match) {
+                    duel.acc = Math.min((duel.acc || 0) + delta, 0.25);
+                    while (duel.acc >= STEP && isPlaying) { simStep(STEP, 1); duel.acc -= STEP; }
+                } else simStep(delta, deltaRatio);
             } else if (duel.spectating) {
-                spectateTick(deltaRatio);
+                spectateTick(delta);
             } else if (demoActive) {
                 demoTick(deltaRatio);
             } else if (player && !duel.countdown && !isPlaying) {
