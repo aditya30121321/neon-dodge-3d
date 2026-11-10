@@ -2748,7 +2748,7 @@
             updateIngameUI();
 
             if (duel.match) sendDuelScore();
-            if (duel.match && duel.opDead && !duel.myDead && (duel.opLeft || Math.floor(score) > Math.floor(duel.opScore))) { gameOver(true); return; }
+            if (duel.match && duel.opDead && !duel.myDead && duel.opLeft) { gameOver(true); return; }
             if (gameMode === 'campaign' && score >= targetScore) {
                 levelComplete();
             }
