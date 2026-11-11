@@ -407,6 +407,38 @@
             <button onclick="showMenu('main-menu')" class="px-8 py-3 mt-6 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded transition-all">BACK TO MENU</button>
         </div>
 
+        <!-- Feedback button + modal, admin gate + panel -->
+        <button id="fb-btn" onclick="openFeedback()" class="fixed bottom-2 right-2 z-[55] text-[10px] font-bold tracking-wider px-2.5 py-1 rounded bg-black/60 border border-gray-700 text-gray-400 hover:text-white hover:border-cyan-400 transition-all">FEEDBACK</button>
+        <div id="fb-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto p-4">
+            <div class="bg-gray-900 border border-cyan-500/60 rounded-xl p-5 max-w-md w-full flex flex-col gap-3">
+                <h3 class="text-2xl font-black text-cyan-400 neon-text">FEEDBACK</h3>
+                <select id="fb-cat" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400">
+                    <option>Bug report</option><option>Idea / feature request</option><option>Balance / difficulty</option><option>Other</option>
+                </select>
+                <textarea id="fb-text" maxlength="600" rows="6" oninput="fbCount()" placeholder="Tell us what you think..." class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400 resize-none"></textarea>
+                <input id="fb-web" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0">
+                <div class="flex justify-between text-[11px] text-gray-500"><span>No personal info please. Spam and inappropriate messages are filtered out.</span><span id="fb-count">0/600</span></div>
+                <p id="fb-status" class="text-sm text-center text-gray-300 min-h-[1.25rem]"></p>
+                <div class="flex gap-2">
+                    <button id="fb-send" onclick="sendFeedback()" class="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded transition-all">SEND</button>
+                    <button onclick="closeFeedback()" class="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded transition-all">CLOSE</button>
+                </div>
+                <a id="fb-mailto" class="hidden text-center text-xs text-cyan-400 underline" href="#">Send with your email app instead</a>
+            </div>
+        </div>
+        <div id="admin-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/85 backdrop-blur-sm pointer-events-auto p-4">
+            <div id="admin-gate" class="bg-gray-900 border border-red-500/70 rounded-xl p-5 max-w-sm w-full flex flex-col gap-3">
+                <h3 class="text-xl font-black text-red-400 tracking-widest">RESTRICTED</h3>
+                <input id="admin-pass" type="password" autocomplete="off" placeholder="passcode" onkeydown="if(event.key==='Enter')adminGate()" class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-red-400">
+                <p id="admin-gate-msg" class="text-xs text-center text-gray-400 min-h-[1rem]"></p>
+                <div class="flex gap-2"><button onclick="adminGate()" class="flex-1 py-2 bg-red-700 hover:bg-red-600 text-white font-bold rounded">ENTER</button><button onclick="closeAdmin()" class="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded">CANCEL</button></div>
+            </div>
+            <div id="admin-panel" class="hidden bg-gray-900 border border-red-500/70 rounded-xl p-5 max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col gap-3">
+                <div class="flex justify-between items-center"><h3 class="text-xl font-black text-red-400 tracking-widest">ADMIN PANEL</h3><button onclick="closeAdmin()" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded">CLOSE</button></div>
+                <div id="admin-body" class="flex flex-col gap-3"></div>
+            </div>
+        </div>
+
         <!-- Level Complete Screen -->
         <div id="level-complete-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 pointer-events-auto backdrop-blur-md hidden transition-opacity duration-300 z-40">
             <h1 class="text-6xl md:text-7xl font-black text-green-400 neon-text mb-2 tracking-tighter">SECTOR CLEARED!</h1>
@@ -504,26 +536,57 @@
 
         // --- SKILL TREE DEFINITIONS ---
         const SKILL_TREE = (() => {
-            const CRD = [150,300,600,1000,1500,2200,3000,4500], CORE = [0,0,1,2,3,5,8,12];
-            const CRD2 = [200,400,800,1200,1800,2500,3500,5000], CORE2 = [1,1,2,3,5,7,10,15];
+            // Each branch now has 4 tiers instead of 8. Every tier gives roughly what two old tiers did combined, at a higher price.
+            const CRD = [600,2100,4800,9800], CORE = [0,4,10,24];
+            const CRD2 = [800,2600,5600,11000], CORE2 = [2,6,14,30];
+            const CRD3 = [900,3000,7000,14000], CORE3 = [2,6,14,30];
             const pct = v => (+(v * 100).toFixed(1)) + '%';
             const make = (prefix, names, stat, vals, desc, crd = CRD, core = CORE) =>
-                names.map((name, i) => ({ id: prefix + (i + 1), name, desc: desc(vals[i]), costCrd: crd[i], costCore: core[i], stat, val: vals[i], req: i ? prefix + i : null }));
-            const techDef = [['Chrono Field I','enemySlow',0.01],['Slow Motion','enemySlow',0.02],['Shield Generator','shield',1],['Temporal Lock','enemySlow',0.02],['Time Dilator','enemySlow',0.03],['Long Fuse','enemySlow',0.03],['Aegis Matrix','shield',1],['Event Horizon','enemySlow',0.04]];
+                names.map((name, i) => ({ id: prefix + (i + 1), name, desc: desc(vals[i], i), costCrd: crd[i], costCore: core[i], stat, val: vals[i], req: i ? prefix + i : null }));
+            const techDef = [['Chrono Field','enemySlow',0.05],['Shield Generator','shield',1],['Time Dilator','enemySlow',0.10],['Aegis Matrix','shield',2]];
             return {
-                hull: make('h', ['Smaller Ship I','Smaller Ship II','Nano Plating','Micro Frame','Slim Profile','Compact Core','Quantum Shrink','Phantom Matrix'], 'hitbox', [0.01,0.02,0.03,0.03,0.04,0.04,0.05,0.05], v => `Slightly smaller hitbox (+${pct(v)}).`),
-                thrusters: make('t', ['Faster Steering I','Dodge Boost','Plasma Jets','Side Thrusters','Overclocked Turning','Hyper Thrust','Warp Lateral','Tachyon Steering'], 'dodgeSpd', [0.01,0.015,0.02,0.025,0.03,0.035,0.04,0.05], v => `Steer ${pct(v * 2)} faster.`),
-                wealth: make('w', ['More Credits I','Credit Magnet I','Coin Attractor','Credit Doubler','Wealth Synergy','Bounty Collector','Gold Rush','Infinite Wealth'], 'creditMult', [0.05,0.08,0.12,0.16,0.20,0.25,0.30,0.38], v => `Earn +${pct(v)} more credits from coins.`),
-                magnetism: make('m', ['Core Finder I','Core Magnet','Quantum Sensor','Core Refinery','Deep Core Radar','Sub-Space Net','Singularity Pull','Core Harvester'], 'coreRate', [0.003,0.005,0.007,0.01,0.013,0.016,0.02,0.026], v => `Neon Core drop rate +${pct(v)}.`, CRD2, CORE2),
-                tech: techDef.map(([name, stat, val], i) => ({ id: 'tc' + (i + 1), name, desc: stat === 'shield' ? 'Start each run with +1 shield hit.' : `Hazards move ${pct(val)} slower.`, costCrd: CRD2[i], costCore: CORE2[i], stat, val, req: i ? 'tc' + i : null })),
-                score: make('s', ['Score Booster I','Point Extender','Combo Master','Score Multiplier IV','Hyper Multiplier','Apex Scorer','Overdrive Points','Infinite Score'], 'scoreMult', [0.03,0.05,0.07,0.10,0.13,0.17,0.21,0.27], v => `Earn +${pct(v)} extra score per second.`),
-                pull: make('p', ['Tractor Beam I','Wide Net','Coin Draw','Gravity Hook','Pull Field','Long Reach','Event Pull','Black Hole Coil'], 'pullRange', [0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.5], v => `Coins and cores drift toward you (+${pct(v)} range).`),
-                prospect: make('pr', ['Prospector I','Dense Veins','Rich Seam','Motherlode','Ore Radar','Deep Vein','Jackpot Zone','Gold Fever'], 'coinRate', [0.005,0.01,0.01,0.015,0.015,0.02,0.02,0.025], v => `More coins spawn (+${pct(v)} chance).`),
-                daredevil: make('d', ['Thrill Seeker','Edge Runner',"Razor's Edge",'Hair Trigger','Nerves of Steel','Wire Walker','Death Wish','Zero Margin'], 'nearMult', [0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6], v => `Close-call bonus +${pct(v)}.`),
-                chain: make('c', ['Chain Starter','Linked Up','Steady Hand','Tight Loop','Long Chain','Cooldown','Time Lock','Endless Chain'], 'comboTime', [0.1,0.1,0.15,0.15,0.2,0.2,0.25,0.25], v => `Coin combo lasts ${v}s longer.`),
-                bounty: make('b', ['Sector Pay I','Clear Bonus','Hazard Pay','Bulk Contract','Veteran Rate','Elite Contract','Warlord Fee','Sector King'], 'clearBonus', [0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6], v => `Sector clear credits +${pct(v)}.`)
+                hull: make('h', ['Smaller Ship','Nano Plating','Slim Profile','Phantom Matrix'], 'hitbox', [0.03,0.06,0.08,0.10], v => `Smaller hitbox (+${pct(v)}).`),
+                thrusters: make('t', ['Faster Steering','Plasma Jets','Hyper Thrust','Tachyon Steering'], 'dodgeSpd', [0.025,0.045,0.065,0.09], v => `Steer ${pct(v * 2)} faster.`),
+                wealth: make('w', ['Credit Magnet','Credit Doubler','Gold Rush','Infinite Wealth'], 'creditMult', [0.13,0.28,0.45,0.68], v => `Earn +${pct(v)} more credits from coins.`),
+                magnetism: make('m', ['Core Finder','Core Refinery','Singularity Pull','Core Harvester'], 'coreRate', [0.008,0.017,0.029,0.046], v => `Neon Core drop rate +${pct(v)}.`, CRD2, CORE2),
+                tech: techDef.map(([name, stat, val], i) => ({ id: 'tc' + (i + 1), name, desc: stat === 'shield' ? `Start each run with +${val} shield${val > 1 ? 's' : ''}.` : `Hazards move ${pct(val)} slower.`, costCrd: CRD2[i], costCore: CORE2[i], stat, val, req: i ? 'tc' + i : null })),
+                score: make('s', ['Score Booster','Combo Master','Hyper Multiplier','Infinite Score'], 'scoreMult', [0.08,0.17,0.30,0.48], v => `Earn +${pct(v)} extra score per second.`),
+                pull: make('p', ['Tractor Beam','Gravity Hook','Long Reach','Black Hole Coil'], 'pullRange', [0.25,0.45,0.65,0.9], v => `Coins and cores drift toward you (+${pct(v)} range).`),
+                prospect: make('pr', ['Prospector','Rich Seam','Deep Vein','Gold Fever'], 'coinRate', [0.015,0.025,0.035,0.045], v => `More coins spawn (+${pct(v)} chance).`),
+                daredevil: make('d', ['Thrill Seeker',"Razor's Edge",'Nerves of Steel','Zero Margin'], 'nearMult', [0.25,0.45,0.7,1.1], v => `Close-call bonus +${pct(v)}.`),
+                chain: make('c', ['Chain Starter','Steady Hand','Long Chain','Time Lock'], 'comboTime', [0.2,0.3,0.4,0.5], v => `Coin combo lasts ${v}s longer.`),
+                bounty: make('b', ['Sector Pay','Hazard Pay','Veteran Rate','Sector King'], 'clearBonus', [0.25,0.45,0.7,1.1], v => `Sector clear credits +${pct(v)}.`),
+                // ---- new branches ----
+                comboCap: make('cc', ['Overcharge','Overflow','Surge Limit','Unlimited Chain'], 'comboCap', [1,1,1,1], (v, i) => `Max coin combo +1 (up to x${9 + i}).`, CRD3, CORE3),
+                coinScore: make('cs', ['Shiny Coins','Gilded Edge','Coin Resonance','Midas Touch'], 'coinScore', [0.1,0.2,0.3,0.4], v => `Coins give +${pct(v)} more score.`, CRD3, CORE3),
+                coreScore: make('ks', ['Core Polish','Resonance','Core Amplifier','Nova Core'], 'coreScore', [0.25,0.5,0.75,1.0], v => `Neon Cores give +${pct(v)} more score.`, CRD3, CORE3),
+                regen: make('rg', ['Shield Cell','Recharge Loop','Fast Charger','Perpetual Shield'], 'shieldRegen', [1,1,1,1], (v, i) => `Close calls recharge a shield (every ${Math.max(3, 16 - 3 * (i + 1))} close calls total, max 3 shields).`, CRD3, CORE3),
+                phase: make('ph', ['Afterimage','Phase Shift','Ghost Frame','Wraith Core'], 'ghostTime', [0.4,0.4,0.5,0.7], v => `After a shield absorbs a hit, you phase through hazards for +${v}s.`, CRD3, CORE3),
+                powerup: make('pu', ['Capacitor','Long Burn','Extended Field','Eternal Orbs'], 'powerDur', [0.15,0.3,0.5,0.75], v => `Power-up effects last +${pct(v)} longer.`, CRD3, CORE3),
+                lucky: make('lk', ['Orb Radar','Lucky Streak','Fortune Field','Orb Storm'], 'powerRate', [0.01,0.02,0.03,0.04], v => `Power-up orbs spawn more (+${pct(v)} chance). Standard Endless and Campaign.`, CRD3, CORE3),
+                headstart: make('hs', ['Warm Up','Rolling Start','Afterburner','Launch Sequence'], 'headStart', [100,250,500,900], v => `Endless runs start with +${v} score.`, CRD3, CORE3)
             };
         })();
+
+        // Old (8-tier) skill saves are refunded once and the tree is re-bought at the new prices.
+        const OLD_SKILL_COST = id => {
+            const m = /^([a-z]+)(\d+)$/.exec(id); if (!m) return [0, 0];
+            const i = +m[2] - 1, set2 = (m[1] === 'm' || m[1] === 'tc');
+            const C = set2 ? [200,400,800,1200,1800,2500,3500,5000] : [150,300,600,1000,1500,2200,3000,4500];
+            const K = set2 ? [1,1,2,3,5,7,10,15] : [0,0,1,2,3,5,8,12];
+            return [C[i] || 0, K[i] || 0];
+        };
+        function migrateSkills(){
+            if (userData.skillVer === 2) return false;
+            let rc = 0, rk = 0;
+            (userData.unlockedSkills || []).forEach(id => { const [c, k] = OLD_SKILL_COST(id); rc += c; rk += k; });
+            userData.credits = (userData.credits || 0) + rc;
+            userData.neonCores = (userData.neonCores || 0) + rk;
+            userData.unlockedSkills = [];
+            userData.skillVer = 2;
+            if (rc || rk) setTimeout(() => { try { duelToast(`Skill tree rebalanced! Refunded ${rc} CRD + ${rk} cores.`); } catch(e){} }, 2500);
+            return true;
+        }
 
         // --- SKINS CATALOG ---
         const skinsList = [
@@ -596,7 +659,7 @@
             q_spend: { id: 'q_spend', name: 'Big Spender', desc: 'Spend 20,000 credits on ships', max: 20000, rCrd: 2000, rCore: 10, rSkin: 26 }
         };
 
-        let playerStats = { dodgeSpd: 0, hitbox: 0, creditMult: 0, coreRate: 0, shield: 0, enemySlow: 0, scoreMult: 0, pullRange: 0, coinRate: 0, nearMult: 0, comboTime: 0, clearBonus: 0 };
+        let playerStats = { dodgeSpd: 0, hitbox: 0, creditMult: 0, coreRate: 0, shield: 0, enemySlow: 0, scoreMult: 0, pullRange: 0, coinRate: 0, nearMult: 0, comboTime: 0, clearBonus: 0, powerDur: 0, powerRate: 0, headStart: 0, shieldRegen: 0, ghostTime: 0, coreScore: 0, coinScore: 0, comboCap: 0 };
         
         let runCredits = 0;
         let runCores = 0;
@@ -1509,6 +1572,203 @@
             if (duel.isHost && duel.opRematch) startDuelRound();
         };
 
+        // --- FEEDBACK (spam / profanity filter, sends to the developer's inbox through FormSubmit) ---
+        // NOTE: the first message FormSubmit receives triggers an activation email to this address. Click the link in it once.
+        const FB_EMAIL = 'aditya.jadhav50@masonohioschools.com';
+        const FB_ENDPOINT = 'https://formsubmit.co/ajax/' + FB_EMAIL;
+        const FB_TOKENS = ['fuck','fucker','fucking','fuk','fck','shit','shitty','bullshit','bitch','bitches','bastard','asshole','arsehole','ass','dick','dicks','dickhead','cock','pussy','cunt','slut','whore','hoe','porn','porno','sex','sexy','nude','nudes','nsfw','rape','raped','rapist','molest','pedo','pedophile','nazi','hitler','kys','retard','retarded','fag','faggot','dyke','tranny','nigger','nigga','nig','chink','spic','kike','wetback','coon','gook','paki','cum','jizz','blowjob','handjob','wank','twat','piss','dildo','anal','bdsm','incel'];
+        const FB_COMPACT = ['fuck','bitch','nigger','nigga','faggot','whore','pussy','cunt','asshole','dickhead','blowjob','motherfucker'];
+        const FB_SPAM = ['buy now','click here','free money','make money','earn money','work from home','crypto','bitcoin','forex','viagra','casino','betting','giveaway','subscribe to','follow me','dm me','telegram','whatsapp','seo ','promote your','limited offer','cheap followers','onlyfans','discord.gg','free robux','free vbucks','v-bucks','hack tool','cheat engine','generator'];
+        function fbNormalize(t){
+            const leet = { '0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','8':'b','@':'a','$':'s','!':'i','+':'t','|':'i' };
+            let x = String(t).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            x = x.replace(/[01345788@$!+|]/g, c => leet[c] || c);
+            return x;
+        }
+        function fbCheck(raw){
+            const text = String(raw || '').trim();
+            if (text.length < 15) return { ok:false, reason:'Please write a little more (at least 15 characters).' };
+            if (text.length > 600) return { ok:false, reason:'Please keep it under 600 characters.' };
+            const words = text.split(/\s+/).filter(Boolean);
+            if (words.length < 3) return { ok:false, reason:'Please write at least a few words.' };
+            const norm = fbNormalize(text);
+            const tokens = norm.split(/[^a-z]+/).filter(Boolean);
+            const collapsed = norm.replace(/([a-z])\1+/g, '$1');
+            const compact = collapsed.replace(/[^a-z]/g, '');
+            const bad = 'Please keep feedback respectful and remove any inappropriate language.';
+            if (tokens.some(w => FB_TOKENS.includes(w))) return { ok:false, reason:bad };
+            const ctoks = collapsed.split(/[^a-z]+/).filter(Boolean);
+            if (ctoks.some(w => FB_TOKENS.map(b => b.replace(/([a-z])\1+/g, '$1')).includes(w) && w.length > 3)) return { ok:false, reason:bad };
+            if (FB_COMPACT.some(w => compact.includes(w.replace(/([a-z])\1+/g, '$1')))) return { ok:false, reason:bad };
+            if (/\b(i|we)\b.{0,12}\b(will|ll|am going to|m gonna|going to|gonna|want to|wanna)\b.{0,8}\b(kill|shoot|stab|hurt|murder|bomb)\b/.test(norm) ||
+                /\b(kill|shoot|stab|bomb|hurt)\b.{0,15}\b(myself|yourself|himself|herself|teachers?|students?|everyone|the school)\b/.test(norm) ||
+                /\bschool\s*(shooting|shooter|bomb)\b/.test(norm)) return { ok:false, reason:'That message was not sent. If someone is in danger, please tell a trusted adult.' };
+            if (/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|ru|io|xyz|info|biz|me|ly|gg|tk|ml|cc|shop|top|site|online)\b)/i.test(text)) return { ok:false, reason:'Please do not include links.' };
+            if (/\S+@\S+\.\S+/.test(text) || /(\d[\s\-.()]*){9,}/.test(text)) return { ok:false, reason:'Please do not include emails, phone numbers or other personal info.' };
+            const low = text.toLowerCase();
+            if (FB_SPAM.some(p => low.includes(p))) return { ok:false, reason:'That looks like spam, so it was not sent.' };
+            if (/(.)\1{5,}/.test(text)) return { ok:false, reason:'Too many repeated characters.' };
+            const letters = text.replace(/[^A-Za-z]/g, '');
+            if (letters.length < 10) return { ok:false, reason:'Please use real words.' };
+            if (text.length > 20 && letters.replace(/[^A-Z]/g, '').length / letters.length > 0.7) return { ok:false, reason:'Please do not write in all caps.' };
+            const lw = words.map(w => w.toLowerCase().replace(/[^a-z0-9']/g, '')).filter(Boolean);
+            const freq = {}; lw.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+            if (lw.length >= 5 && Math.max(...Object.values(freq)) / lw.length > 0.4) return { ok:false, reason:'That looks repetitive.' };
+            if (new Set(lw).size < 3) return { ok:false, reason:'Please write a real sentence.' };
+            if (words.some(w => w.length > 25)) return { ok:false, reason:'Please use real words.' };
+            const vowelless = lw.filter(w => w.length >= 6 && !/[aeiouy]/.test(w)).length;
+            if (vowelless >= 2) return { ok:false, reason:'That looks like random typing.' };
+            return { ok:true };
+        }
+        function fbLog(){ try { return JSON.parse(localStorage.getItem('nd3d_fb_log') || '[]'); } catch(e){ return []; } }
+        function fbLogAdd(e){ try { const l = fbLog(); l.push(e); localStorage.setItem('nd3d_fb_log', JSON.stringify(l.slice(-40))); } catch(err){} }
+        function fbStatus(t, bad){ const el = byId('fb-status'); el.innerText = t; el.style.color = bad ? '#f87171' : '#d1d5db'; }
+        window.fbCount = function(){ byId('fb-count').innerText = byId('fb-text').value.length + '/600'; };
+        window.openFeedback = function(){
+            byId('fb-modal').classList.remove('hidden'); fbStatus('', false);
+            byId('fb-mailto').classList.add('hidden'); byId('fb-send').disabled = false;
+            fbCount(); setTimeout(() => byId('fb-text').focus(), 50);
+        };
+        window.closeFeedback = function(){ byId('fb-modal').classList.add('hidden'); };
+        function fbHash(t){ let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return String(h); }
+        window.sendFeedback = async function(){
+            const btn = byId('fb-send'), text = byId('fb-text').value.trim(), cat = byId('fb-cat').value;
+            if (byId('fb-web').value) { fbStatus('Thanks for your feedback!', false); closeFeedbackSoon(); return; } // honeypot: bots only
+            const res = fbCheck(text);
+            if (!res.ok) { fbStatus(res.reason, true); return; }
+            const now = Date.now();
+            let st = {}; try { st = JSON.parse(localStorage.getItem('nd3d_fb_state') || '{}'); } catch(e){}
+            const day = new Date().toDateString();
+            if (st.day !== day) { st.day = day; st.n = 0; }
+            if (st.last && now - st.last < 60000) { fbStatus(`Please wait ${Math.ceil((60000 - (now - st.last)) / 1000)}s before sending another message.`, true); return; }
+            if (st.n >= 5) { fbStatus('You have reached today\u2019s feedback limit. Thank you!', true); return; }
+            const h = fbHash(text.toLowerCase());
+            if (st.h === h) { fbStatus('You already sent that message.', true); return; }
+            const nameOk = fbCheck('player name check ' + userData.username).ok;
+            const name = nameOk ? String(userData.username || 'Player').slice(0, 24) : 'Anonymous';
+            btn.disabled = true; fbStatus('Sending...', false);
+            const entry = { t: now, cat, msg: text, name, sent: false };
+            try {
+                const r = await fetch(FB_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+                    body: JSON.stringify({ _subject:`Neon Dodge feedback: ${cat}`, _captcha:'false', _template:'table', category:cat, player:name, message:text, time:new Date(now).toISOString() }) });
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok || String(j.success) === 'false') throw new Error('send failed');
+                entry.sent = true; st.last = now; st.n++; st.h = h;
+                localStorage.setItem('nd3d_fb_state', JSON.stringify(st));
+                fbLogAdd(entry);
+                byId('fb-text').value = ''; fbCount(); fbStatus('Sent! Thanks for helping improve the game.', false);
+                closeFeedbackSoon();
+            } catch(err) {
+                fbLogAdd(entry);
+                btn.disabled = false;
+                fbStatus('Could not send right now. Check your connection and try again.', true);
+                const a = byId('fb-mailto'); a.classList.remove('hidden');
+                a.href = `mailto:${FB_EMAIL}?subject=${encodeURIComponent('Neon Dodge feedback: ' + cat)}&body=${encodeURIComponent(text)}`;
+            }
+        };
+        function closeFeedbackSoon(){ setTimeout(closeFeedback, 1600); }
+
+        // --- ADMIN PANEL (hidden: Konami code on the main menu, then a passcode) ---
+        // The passcode is stored only as a SHA-256 hash. To change it, open the panel and use "Passcode hash generator",
+        // then paste the result into ADMIN_HASH below. (This is obscurity, not real security: everything runs in the browser.)
+        const ADMIN_SALT = 'nd3d::';
+        const ADMIN_HASH = 'f6f31af219086a960cbfbda5e09c7ef5c32e5ab138f6d578b602f6812db8bad9';
+        async function sha256Hex(t){
+            const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+            return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+        }
+        const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+        function adminLock(){ try { return JSON.parse(localStorage.getItem('nd3d_adm_lock') || '{}'); } catch(e){ return {}; } }
+        function openAdminGate(){
+            if (admin.on) { openAdminPanel(); return; }
+            if (duel.conn || duel.match) { duelToast('Leave your duel lobby first.'); return; }
+            byId('admin-modal').classList.remove('hidden');
+            byId('admin-gate').classList.remove('hidden'); byId('admin-panel').classList.add('hidden');
+            byId('admin-pass').value = ''; byId('admin-gate-msg').innerText = '';
+            setTimeout(() => byId('admin-pass').focus(), 50);
+        }
+        window.closeAdmin = function(){ byId('admin-modal').classList.add('hidden'); };
+        window.adminGate = async function(){
+            const msg = byId('admin-gate-msg'), lk = adminLock();
+            if (lk.until && Date.now() < lk.until) { msg.innerText = `Locked. Try again in ${Math.ceil((lk.until - Date.now()) / 60000)} min.`; return; }
+            if (!(window.crypto && crypto.subtle)) { msg.innerText = 'Needs a secure (https) page.'; return; }
+            const h = await sha256Hex(ADMIN_SALT + byId('admin-pass').value);
+            if (h === ADMIN_HASH) {
+                try { localStorage.removeItem('nd3d_adm_lock'); } catch(e){}
+                admin.on = true; openAdminPanel();
+            } else {
+                const n = (lk.n || 0) + 1, nl = { n };
+                if (n >= 5) { nl.until = Date.now() + 5 * 60000; nl.n = 0; }
+                try { localStorage.setItem('nd3d_adm_lock', JSON.stringify(nl)); } catch(e){}
+                msg.innerText = n >= 5 ? 'Too many attempts. Locked for 5 minutes.' : 'Access denied.';
+                byId('admin-pass').value = '';
+            }
+        };
+        function openAdminPanel(){
+            byId('admin-modal').classList.remove('hidden');
+            byId('admin-gate').classList.add('hidden'); byId('admin-panel').classList.remove('hidden');
+            adminRender();
+        }
+        function adminRender(){
+            const total = Object.values(SKILL_TREE).reduce((n, b) => n + b.length, 0);
+            const log = fbLog().slice(-15).reverse();
+            const btn = (a, label, cls) => `<button onclick="adminDo('${a}')" class="px-3 py-1.5 text-xs font-bold rounded ${cls || 'bg-gray-700 hover:bg-gray-600'} text-white transition-all">${label}</button>`;
+            const inp = (id, ph) => `<input id="${id}" type="number" placeholder="${ph}" class="w-28 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-red-400">`;
+            byId('admin-body').innerHTML = `
+                <p class="text-xs text-gray-400">Signed in as <b class="text-white">${esc(userData.username)}</b> | CRD ${Math.floor(userData.credits)} | CORES ${userData.neonCores} | Skills ${userData.unlockedSkills.length}/${total} | Level ${userData.currentLevel}${userData.isGuest ? ' | <span class="text-yellow-400">guest: changes are not saved</span>' : ''}</p>
+                <div class="flex flex-wrap gap-2 items-center">${inp('adm-crd', 'credits +')}${btn('crd', 'ADD CREDITS')}${inp('adm-core', 'cores +')}${btn('core', 'ADD CORES')}${btn('max', 'MAX CURRENCY', 'bg-red-700 hover:bg-red-600')}</div>
+                <div class="flex flex-wrap gap-2 items-center">${btn('skills', 'UNLOCK ALL SKILLS')}${btn('noskills', 'LOCK ALL SKILLS')}${btn('skins', 'UNLOCK ALL SHIPS')}${btn('quests', 'COMPLETE ALL QUESTS')}</div>
+                <div class="flex flex-wrap gap-2 items-center">${inp('adm-lvl', 'campaign level')}${btn('level', 'SET LEVEL')}${btn('scores', 'RESET HIGH SCORES')}${btn('god', admin.god ? 'GOD MODE: ON' : 'GOD MODE: OFF', admin.god ? 'bg-green-700 hover:bg-green-600' : '')}</div>
+                <p class="text-[11px] text-gray-500">God mode never applies in duels, and the panel will not open while you are in a duel lobby.</p>
+                <p id="adm-status" class="text-xs text-green-400 min-h-[1rem]"></p>
+                <div class="border-t border-gray-700 pt-2">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Passcode hash generator</p>
+                    <div class="flex gap-2"><input id="adm-hash-in" type="text" placeholder="new passcode" class="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-red-400"><button onclick="adminDo('hash')" class="px-3 py-1.5 text-xs font-bold rounded bg-gray-700 hover:bg-gray-600 text-white">HASH</button></div>
+                    <p id="adm-hash-out" class="text-[10px] font-mono text-gray-400 break-all mt-1"></p>
+                </div>
+                <div class="border-t border-gray-700 pt-2">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Feedback sent from this browser (${log.length})</p>
+                    ${log.length ? log.map(e => `<div class="text-xs bg-black/40 border border-gray-800 rounded p-2 mb-1"><span class="text-cyan-300 font-bold">${esc(e.cat)}</span> <span class="text-gray-500">- ${esc(e.name)} - ${new Date(e.t).toLocaleString()} - ${e.sent ? 'sent' : 'NOT SENT'}</span><br><span class="text-gray-200">${esc(e.msg)}</span></div>`).join('') : '<p class="text-xs text-gray-600">Nothing yet.</p>'}
+                </div>`;
+        }
+        window.adminDo = async function(act){
+            if (!admin.on) return;
+            if (duel.conn || duel.match) { duelToast('Leave your duel lobby first.'); closeAdmin(); return; }
+            const num = id => Math.max(0, Math.floor(+byId(id).value || 0));
+            let msg = '';
+            if (act === 'crd') { const n = num('adm-crd'); userData.credits += n; msg = `+${n} credits`; }
+            else if (act === 'core') { const n = num('adm-core'); userData.neonCores += n; msg = `+${n} cores`; }
+            else if (act === 'max') { userData.credits = Math.max(userData.credits, 9999999); userData.neonCores = Math.max(userData.neonCores, 99999); msg = 'Currency maxed'; }
+            else if (act === 'skills') { userData.unlockedSkills = Object.values(SKILL_TREE).flat().map(k => k.id); recalculateStats(); msg = 'All skills unlocked'; }
+            else if (act === 'noskills') { userData.unlockedSkills = []; recalculateStats(); msg = 'Skills cleared (no refund)'; }
+            else if (act === 'skins') { skinsList.forEach(k => { if (!userData.unlockedSkins.includes(k.id)) userData.unlockedSkins.push(k.id); }); msg = 'All ships unlocked'; }
+            else if (act === 'quests') { ensureQuests(); Object.values(questsList).forEach(q => { userData.questProgress[q.id].p = Math.max(userData.questProgress[q.id].p, q.max); }); msg = 'All quests ready to claim'; }
+            else if (act === 'level') { const n = num('adm-lvl'); if (n >= 1) { userData.currentLevel = n; msg = `Campaign level ${n}`; } else msg = 'Enter a level (1+)'; }
+            else if (act === 'scores') { userData.highScoreStandard = 0; userData.highScorePure = 0; msg = 'High scores reset'; }
+            else if (act === 'god') { admin.god = !admin.god; msg = admin.god ? 'God mode on (solo runs only)' : 'God mode off'; }
+            else if (act === 'hash') {
+                const t = byId('adm-hash-in').value;
+                byId('adm-hash-out').innerText = t ? await sha256Hex(ADMIN_SALT + t) : '';
+                byId('adm-status').innerText = t ? 'Paste this into ADMIN_HASH in the source.' : '';
+                return;
+            }
+            try { syncDerivedQuests(); } catch(e){}
+            saveUserData(); updateMetaUI(); adminRender();
+            byId('adm-status').innerText = msg;
+        };
+        {
+            const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','KeyB','KeyA'];
+            let ki = 0;
+            document.addEventListener('keydown', e => {
+                const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+                if (e.code === 'Escape') { closeFeedback(); closeAdmin(); }
+                const mm = byId('main-menu');
+                if (!mm || mm.classList.contains('hidden') || isPlaying) { ki = 0; return; }
+                if (e.code === KONAMI[ki]) { ki++; if (ki === KONAMI.length) { ki = 0; openAdminGate(); } }
+                else ki = (e.code === KONAMI[0]) ? 1 : 0;
+            });
+        }
+
         // --- QUALITY OF LIFE ---
         let paused = false;
         let shake = 0;
@@ -1687,6 +1947,8 @@
         };
         window.startCustom = function(){ customSpeed = parseFloat(byId('custom-speed').value) || 1; startGame('custom'); };
         let powers = { slow: 0, magnet: 0 };
+        let invulnUntil = -1;
+        const admin = { on:false, god:false };
         const POWERS = { slow: { c: 0x00e5ff, t: 'SLOW-MO' }, magnet: { c: 0xffd700, t: 'MAGNET' }, shield: { c: 0x66aaff, t: 'SHIELD +1' } };
         const powerGeo = new THREE.TorusGeometry(0.7, 0.22, 8, 16);
         const powerMats = {};
@@ -1722,7 +1984,7 @@
         }
         function grabPower(kind) {
             if (kind === 'shield') { currentShields++; player.shieldMesh.material.opacity = 0.4; }
-            else powers[kind] = timeAlive + (kind === 'slow' ? 5 : 8);
+            else powers[kind] = timeAlive + (kind === 'slow' ? 5 : 8) * (1 + ps('powerDur'));
             popup(POWERS[kind].t, 'p-gold'); window.playSFX('core');
         }
 
@@ -1738,7 +2000,7 @@
         }
         // Skill-tree bonuses apply everywhere except Pure Endless (and Custom runs unless SKILLS is selected). Duels follow the lobby's Pure/Skills modifier.
         function skillsOn(){ if (duel.match) return duel.mods.loadout === 'skills'; return gameMode !== 'endless_pure' || (customRun && customSkills); }
-        function ps(stat){ if (duel.match && (stat === 'coreRate' || stat === 'coinRate')) return 0; return skillsOn() ? (playerStats[stat] || 0) : 0; }
+        function ps(stat){ if (duel.match && (stat === 'coreRate' || stat === 'coinRate' || stat === 'powerRate')) return 0; return skillsOn() ? (playerStats[stat] || 0) : 0; }
         function comboWindow(){ return 2.5 + ps('comboTime'); }
 
         // --- HOME SCREEN ATTRACT MODE: a bot plays in the background behind the blurred menu ---
@@ -1884,6 +2146,7 @@
 
         window.showMenu = function(menuId) {
             if (window.playSFX) window.playSFX('click');
+            { const fbb = document.getElementById('fb-btn'); if (fbb) fbb.classList.toggle('hidden', menuId === null); }
             const _pd = document.getElementById('power-display'); if (_pd) _pd.innerText = '';
             ['credits-display', 'cores-display'].forEach(id => { const e = document.getElementById(id); if (e) e.classList.toggle('hidden', menuId === null && customRun); });
             const menuIds = [
@@ -1957,7 +2220,15 @@
                 prospect: 'PROSPECTOR (+COIN SPAWNS)',
                 daredevil: 'DAREDEVIL (+CLOSE-CALL BONUS)',
                 chain: 'CHAIN LINK (+COMBO TIME)',
-                bounty: 'BOUNTY (+SECTOR REWARDS)'
+                bounty: 'BOUNTY (+SECTOR REWARDS)',
+                comboCap: 'OVERCHARGE (+MAX COMBO)',
+                coinScore: 'GILDED COINS (+COIN SCORE)',
+                coreScore: 'CORE RESONANCE (+CORE SCORE)',
+                regen: 'SHIELD REGEN (+CLOSE-CALL SHIELDS)',
+                phase: 'PHASE SHIFT (+GRACE AFTER HIT)',
+                powerup: 'POWER CELL (+POWER-UP TIME)',
+                lucky: 'FORTUNE (+POWER-UP SPAWNS)',
+                headstart: 'HEAD START (+STARTING SCORE)'
             };
 
             Object.keys(SKILL_TREE).forEach(branchKey => {
@@ -2420,7 +2691,7 @@
             if (player) player.visible = true;
             if (camera) camera.position.x = 0;
             isPlaying = true;
-            score = 0;
+            score = (mode === 'campaign') ? 0 : ps('headStart');
             timeAlive = 0;
             runCredits = 0;
             runCores = 0;
@@ -2438,7 +2709,7 @@
             if (!customRun) userData.lifetimeStats.totalRuns++;
             paused = false;
             byId('pause-menu').classList.add('hidden');
-            powers = { slow: 0, magnet: 0 }; combo = 0; lastPickupT = -99; nearStreak = 0; lastNearT = -99; lastNearWall = -1; spawnCount = 0; lastEnemyX = 0; wallSeq = 0; bestPassed = false; runStats.near = 0; runStats.maxCombo = 0;
+            powers = { slow: 0, magnet: 0 }; invulnUntil = -1; combo = 0; lastPickupT = -99; nearStreak = 0; lastNearT = -99; lastNearWall = -1; spawnCount = 0; lastEnemyX = 0; wallSeq = 0; bestPassed = false; runStats.near = 0; runStats.maxCombo = 0;
 
             const modeEl = document.getElementById('mode-display');
             const speedEl = document.getElementById('speed-display');
@@ -2501,7 +2772,8 @@
         };
 
         function recalculateStats() {
-            playerStats = { dodgeSpd: 0, hitbox: 0, creditMult: 0, coreRate: 0, shield: 0, enemySlow: 0, scoreMult: 0, pullRange: 0, coinRate: 0, nearMult: 0, comboTime: 0, clearBonus: 0 };
+            if (migrateSkills()) saveUserData();
+            playerStats = { dodgeSpd: 0, hitbox: 0, creditMult: 0, coreRate: 0, shield: 0, enemySlow: 0, scoreMult: 0, pullRange: 0, coinRate: 0, nearMult: 0, comboTime: 0, clearBonus: 0, powerDur: 0, powerRate: 0, headStart: 0, shieldRegen: 0, ghostTime: 0, coreScore: 0, coinScore: 0, comboCap: 0 };
             const allSkills = Object.values(SKILL_TREE).flat();
             userData.unlockedSkills.forEach(skillId => {
                 const skill = allSkills.find(s => s.id === skillId);
@@ -2771,7 +3043,7 @@
         function spawnObstacle() {
             spawnCount++;
             if (spawnCount > 4 && duelRand() < Math.min(0.5, 0.1 + spawnCount * 0.004)) { spawnPattern(); return; }
-            if (duel.match ? (duel.mods.powerups && duelRand() < 0.04) : (gameMode !== 'endless_pure' && Math.random() < 0.035)) { spawnPower(); return; }
+            if (duel.match ? (duel.mods.powerups && duelRand() < 0.04) : (gameMode !== 'endless_pure' && Math.random() < 0.035 + ps('powerRate'))) { spawnPower(); return; }
             const r = duelRand();
             let type = 'enemy';
             let mesh;
@@ -2827,10 +3099,11 @@
                     obs.mesh.position.y = Math.sin(timeAlive * 5 + i) * 0.5;
                 }
                 
-                if (checkCollision(player, obs.mesh)) {
+                if (!(obs.type === 'enemy' && (timeAlive < invulnUntil || (admin.god && !duel.match))) && checkCollision(player, obs.mesh)) {
                     if (obs.type === 'enemy') {
                         if (currentShields > 0) {
                             currentShields--;
+                            invulnUntil = timeAlive + ps('ghostTime');
                             shake = 0.6; flash();
                             window.playSFX('hit');
                             player.shieldMesh.material.opacity = currentShields > 0 ? 0.4 : 0;
@@ -2845,10 +3118,9 @@
                         const statMult = ps('creditMult');
                         if (!duel.match && !customRun) runCredits += Math.floor(10 * (1 + statMult));
                         const t = timeAlive;
-                        combo = (t - lastPickupT < comboWindow()) ? Math.min(combo + 1, 8) : 1;
+                        combo = (t - lastPickupT < comboWindow()) ? Math.min(combo + 1, 8 + ps('comboCap')) : 1;
                         lastPickupT = t; runStats.maxCombo = Math.max(runStats.maxCombo, combo);
-                        score += 50 * combo - 50;
-                        score += 50;
+                        score += (50 * combo) * (1 + ps('coinScore'));
                         sfxPitch = 1 + (combo - 1) * 0.09; window.playSFX('coin'); sfxPitch = 1;
                         { const wp = new THREE.Vector3(); obs.mesh.getWorldPosition(wp); burst(wp, 0xffb300, 10, 1); }
                         if (combo > 1) popup('+' + (50 * combo) + '  x' + combo, 'p-gold');
@@ -2858,7 +3130,7 @@
                         continue;
                     } else if (obs.type === 'core') {
                         if (!duel.match && !customRun) runCores += 1;
-                        score += 200;
+                        score += 200 * (1 + ps('coreScore'));
                         window.playSFX('core');
                         { const wp = new THREE.Vector3(); obs.mesh.getWorldPosition(wp); burst(wp, 0x62d6a0, 18, 1.2); }
                         popup('+200 CORE', 'p-gold'); flash();
@@ -2885,6 +3157,7 @@
                         lastNearT = timeAlive;
                         const bonus = Math.round(15 * nearStreak * (1 + ps('nearMult')));
                         score += bonus; runStats.near++;
+                        { const rg = ps('shieldRegen'); if (rg > 0 && currentShields < 3 && runStats.near % Math.max(3, 16 - 3 * rg) === 0) { currentShields++; player.shieldMesh.material.opacity = 0.4; popup('SHIELD RECHARGED', 'p-gold'); } }
                         popup('CLOSE CALL +' + bonus, 'p-red'); window.playSFX('near');
                     }
                 }
