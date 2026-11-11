@@ -6,7 +6,6 @@
     <title>Neon Dodge 3D</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -1033,7 +1032,7 @@
             return group;
         }
 
-        // --- DUELS (PeerJS) ---
+        // --- DUELS (Trystero: serverless WebRTC matchmaking) ---
         let lastMode = 'campaign';
         const duel = { match:false, peer:null, conn:null, isHost:false, seed:0, opName:'Opponent', opSkin:100, opScore:0, opX:0, opSpeed:1, opDead:false, myDead:false, myScore:0, myRematch:false, opRematch:false, lastSend:0, ghost:null, spectating:false, countdown:false };
         let duelRng = Math.random;
@@ -1330,10 +1329,11 @@
             { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
             { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
         ];
-        const PEER_OPTS = { debug: 1, config: { iceServers: ICE_SERVERS, iceCandidatePoolSize: 4 } };
+        const TRYSTERO_CFG = { appId: 'neon-drift-3d-duels-v1', rtcConfig: { iceServers: ICE_SERVERS, iceCandidatePoolSize: 4 } };
         function duelErrMsg(e){
             const t = e && e.type;
             if (t === 'peer-unavailable') return 'No room found with that code. Check it, and make sure the host is still on the Duels screen.';
+            if (t === 'load') return 'Could not load the multiplayer library. Check your connection and reload the page.';
             if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return 'Could not reach the matchmaking server. Check your internet connection and try again.';
             if (t === 'webrtc') return 'Direct connection failed. Try swapping who hosts, or put both devices on the same Wi-Fi.';
             return 'Connection error: ' + (t || e);
@@ -1345,61 +1345,96 @@
             for (let i = 0; i < 5; i++) c += A[Math.floor(Math.random() * A.length)];
             return c;
         }
-        window.hostDuel = function(attempt){
-            if (typeof Peer === 'undefined') { duelStatus('PeerJS failed to load. Check your connection and reload the page.'); return; }
-            attempt = typeof attempt === 'number' ? attempt : 0;
+        // --- Trystero transport -------------------------------------------------
+        // Players meet in a room named after the code (signaling goes over public Nostr relays, so there is no
+        // single matchmaking server to go down). makeRoomConn() wraps one remote peer in a small object that
+        // behaves like the old PeerJS connection (open / send / on / close) so the rest of the duel code is unchanged.
+        let trysteroPromise = null;
+        function loadTrystero(){
+            if (trysteroPromise) return trysteroPromise;
+            const urls = ['https://esm.run/trystero/nostr', 'https://cdn.jsdelivr.net/npm/trystero/nostr/+esm', 'https://esm.sh/trystero/nostr'];
+            trysteroPromise = (async () => {
+                for (const u of urls) { try { return await import(u); } catch(e) { console.warn('Trystero load failed from', u, e); } }
+                throw { type: 'load' };
+            })();
+            trysteroPromise.catch(() => { trysteroPromise = null; });
+            return trysteroPromise;
+        }
+        function makeRoomConn(send, peerId){
+            const h = {};
+            const c = {
+                open: true, peerId, _h: h,
+                on(ev, fn){ h[ev] = fn; },
+                send(m){ try { const p = send(m, peerId); if (p && p.catch) p.catch(() => {}); } catch(e){} },
+                close(silent){
+                    if (!c.open) return;
+                    if (!silent) c.send({ t: '__bye' });
+                    c.open = false;
+                    if (h.close) h.close();
+                }
+            };
+            return c;
+        }
+        function joinDuelRoom(shim, code, onReady){
+            loadTrystero().then(mod => {
+                if (duel.peer !== shim) return; // user left before the library finished loading
+                const room = mod.joinRoom(TRYSTERO_CFG, 'nd3d-' + code);
+                shim.room = room;
+                const [sendMsg, getMsg] = room.makeAction('duel');
+                const send = (m, id) => sendMsg(m, id);
+                getMsg((d, id) => {
+                    if (!d || duel.peer !== shim) return;
+                    if (d.t === '__host') { if (!duel.isHost && !duel.conn) setupConn(makeRoomConn(send, id)); return; }
+                    if (d.t === '__full') { if (!duel.isHost && !duel.conn) { clearTimeout(duelNetTimer); duelStatus('That lobby already has two players.'); } return; }
+                    const c = duel.conn;
+                    if (!c || c.peerId !== id) return;
+                    if (d.t === '__bye') { c.close(true); return; }
+                    onDuelData(d);
+                });
+                room.onPeerJoin(id => {
+                    if (duel.peer !== shim || !duel.isHost) return; // only the host reacts to joins; guests wait for the host's hello
+                    if (duel.conn) { send({ t: '__full' }, id); return; }
+                    duelStatus('Opponent joined! Connecting...');
+                    send({ t: '__host' }, id);
+                    setupConn(makeRoomConn(send, id));
+                });
+                room.onPeerLeave(id => {
+                    if (duel.peer !== shim) return;
+                    const c = duel.conn;
+                    if (c && c.peerId === id) c.close(true);
+                });
+                if (onReady) onReady();
+            }).catch(e => { if (duel.peer === shim) { clearTimeout(duelNetTimer); duelPeerError(e && e.type ? e : { type: 'load' }); } });
+        }
+        function makePeerShim(){
+            const shim = { open: true, destroyed: false, room: null, destroy(){ shim.destroyed = true; try { if (shim.room) shim.room.leave(); } catch(e){} } };
+            return shim;
+        }
+        window.hostDuel = function(){
             endDuel(); duel.isHost = true; duel.mods = loadSavedMods();
-            duelStatus('Contacting matchmaking server...');
+            duelStatus('Opening room...');
             const code = newDuelCode();
-            const peer = new Peer('nd3d-' + code, PEER_OPTS);
-            duel.peer = peer;
-            duelNetTimer = setTimeout(() => {
-                if (duel.peer !== peer || peer.open) return;
-                if (attempt < 2) { duelStatus('Matchmaking server is slow, retrying...'); window.hostDuel(attempt + 1); }
-                else duelStatus('Could not reach the matchmaking server. Check your connection and press HOST again.');
-            }, 9000);
-            peer.on('open', () => { clearTimeout(duelNetTimer); duel.code = code; byId('duel-code').innerText = code; duelStatus('Share this code (click it to copy). Waiting for opponent...'); });
-            peer.on('connection', c => {
-                duelStatus('Opponent joined! Connecting...');
-                setupConn(c);
-                clearTimeout(duelNetTimer);
-                duelNetTimer = setTimeout(() => {
-                    if (duel.peer !== peer || (duel.conn && duel.conn.open)) return;
-                    const stuck = duel.conn; duel.conn = null;
-                    try { if (stuck) stuck.close(); } catch(e){}
-                    duelStatus('Opponent could not connect directly. Waiting for them to retry...');
-                }, 15000);
+            const shim = makePeerShim();
+            duel.peer = shim;
+            joinDuelRoom(shim, code, () => {
+                duel.code = code; byId('duel-code').innerText = code;
+                duelStatus('Share this code (click it to copy). Waiting for opponent...');
             });
-            peer.on('disconnected', () => { if (duel.peer === peer && !peer.destroyed) { try { peer.reconnect(); } catch(e){} } });
-            peer.on('error', e => { if (duel.peer !== peer) return; if (e.type === 'unavailable-id') window.hostDuel(attempt); else duelPeerError(e); });
         };
         window.joinDuel = function(){
             const code = byId('duel-code-input').value.replace(/\s/g, '').toUpperCase();
             if (!code) return;
-            if (typeof Peer === 'undefined') { duelStatus('PeerJS failed to load. Check your connection and reload the page.'); return; }
             endDuel(); duel.isHost = false; duel.code = code; duel.pendingInvite = ''; try { localStorage.setItem('nd3d_last_duel_code', code); } catch(e){}
-            duelStatus('Contacting matchmaking server...');
-            const peer = new Peer(undefined, PEER_OPTS);
-            duel.peer = peer;
-            let tries = 0;
-            const connectToHost = () => {
-                if (duel.peer !== peer) return;
-                tries++;
-                duelStatus(tries === 1 ? 'Connecting to host...' : `Retrying connection (${tries}/3)...`);
-                if (duel.conn) { const old = duel.conn; duel.conn = null; try { old.close(); } catch(e){} }
-                setupConn(peer.connect('nd3d-' + code, { reliable: true, serialization: 'json' }));
+            duelStatus('Looking for the host...');
+            const shim = makePeerShim();
+            duel.peer = shim;
+            joinDuelRoom(shim, code, () => {
                 clearTimeout(duelNetTimer);
                 duelNetTimer = setTimeout(() => {
-                    if (duel.peer !== peer || (duel.conn && duel.conn.open)) return;
-                    if (tries < 3) connectToHost();
-                    else duelStatus('Could not connect. Make sure the host is still on the Duels screen, then try again (or swap who hosts).');
-                }, 12000);
-            };
-            duelNetTimer = setTimeout(() => {
-                if (duel.peer === peer && !peer.open) duelStatus('Matchmaking server is not responding. Check your connection and try again.');
-            }, 12000);
-            peer.on('open', () => { clearTimeout(duelNetTimer); connectToHost(); });
-            peer.on('error', e => { if (duel.peer === peer) duelPeerError(e); });
+                    if (duel.peer !== shim || (duel.conn && duel.conn.open)) return;
+                    duelStatus('No host found for that code. Check it, make sure the host is still on the Duels screen, then try again.');
+                }, 20000);
+            });
         };
         function opponentGone(msg, force){
             if (!duel.match || duel.counted) return;
@@ -1436,9 +1471,7 @@
             };
             c.on('open', onOpen);
             if (c.open) onOpen();
-            c.on('data', onDuelData);
             c.on('error', e => { if (duel.conn === c) duelPeerError(e); });
-            c.on('iceStateChanged', st => { if (st === 'failed' && duel.conn === c && !duel.match) duelStatus(duelErrMsg({ type:'webrtc' })); });
             c.on('close', () => {
                 if (duel.conn !== c) return;
                 duel.conn = null;
