@@ -1024,7 +1024,7 @@
         }
         // Full teardown: disconnects from the opponent and forgets the lobby and its record.
         function closeLobby(){
-            clearTimeout(duelNetTimer);
+            clearTimeout(duelNetTimer); clearInterval(duel.helloT); clearInterval(duel.pingT);
             const c = duel.conn, p = duel.peer;
             duel.conn = null; duel.peer = null; duel.inLobby = false; duel.code = '';
             duel.rec = { w:0, d:0, l:0 }; duel.myRematch = false; duel.opRematch = false;
@@ -1232,8 +1232,20 @@
             const onOpen = () => {
                 if (greeted) return; greeted = true;
                 clearTimeout(duelNetTimer);
-                duelSend({ t:'hello', name:userData.username, skin:userData.currentSkinId });
-                duelStatus('Connected!');
+                const sendHello = ack => duelSend({ t:'hello', ack:!!ack, name:userData.username, skin:userData.currentSkinId });
+                duel.sendHello = sendHello;
+                sendHello(false);
+                duelStatus('Connected! Waiting for the other player...');
+                duel.lastPingRx = performance.now();
+                let n = 0;
+                clearInterval(duel.helloT);
+                duel.helloT = setInterval(() => {
+                    if (duel.conn !== c || duel.inLobby) { clearInterval(duel.helloT); return; }
+                    if (++n > 8) { clearInterval(duel.helloT); duelStatus('Connected, but the other player is not responding. Leave and try again, or swap who hosts.'); return; }
+                    sendHello(false);
+                }, 1500);
+                clearInterval(duel.pingT);
+                duel.pingT = setInterval(() => { if (duel.conn !== c) { clearInterval(duel.pingT); return; } duelSend({ t:'ping' }); }, 1000);
             };
             c.on('open', onOpen);
             if (c.open) onOpen();
@@ -1243,6 +1255,7 @@
             c.on('close', () => {
                 if (duel.conn !== c) return;
                 duel.conn = null;
+                clearInterval(duel.helloT); clearInterval(duel.pingT);
                 duel.inLobby = false; duel.opRematch = false; duel.myRematch = false;
                 if (duel.match) opponentGone(`${duel.opName} disconnected`);
                 else {
@@ -1258,8 +1271,10 @@
                 duel.opName = d.name || 'Opponent';
                 duel.opSkin = d.skin != null ? d.skin : 100;
                 if (!duel.inLobby) { duel.inLobby = true; duel.rec = { w:0, d:0, l:0 }; duelToast(`${duel.opName} is in the lobby`); }
+                if (!d.ack && duel.sendHello) duel.sendHello(true);
                 updateLobbyUI();
             }
+            else if (d.t === 'ping') { duel.lastPingRx = performance.now(); }
             else if (d.t === 'start') { if (!duel.myRematch) return; duel.seed = d.seed; beginDuel(); }
             else if (d.t === 'unready') { duel.opRematch = false; updateLobbyUI(); }
             else if (d.t === 'left') { opponentGone(`${duel.opName} left the match`, true); }
@@ -1278,11 +1293,16 @@
             beginDuel();
         }
         function beginDuel(){
-            Object.assign(duel, { opScore:0, opX:0, opSpeed:1, opDead:false, opLeft:false, myDead:false, myScore:0, myRematch:false, opRematch:false, spectating:false, counted:false, starting:false, acc:0, lastScoreRx:performance.now() });
+            Object.assign(duel, { opScore:0, opX:0, opSpeed:1, opDead:false, opLeft:false, myDead:false, myScore:0, myRematch:false, opRematch:false, spectating:false, counted:false, starting:false, acc:0, pausedWarned:false, lastScoreRx:performance.now() });
             clearInterval(duel.watch);
             duel.watch = setInterval(() => {
                 if (!duel.match || duel.opDead || !duel.conn || duel.countdown) return;
-                if (performance.now() - (duel.lastScoreRx || 0) > 8000) {
+                const now = performance.now(), stale = now - (duel.lastScoreRx || 0), pingFresh = now - (duel.lastPingRx || 0) < 4000;
+                if (stale > 8000 && pingFresh && stale <= 30000) {
+                    if (!duel.pausedWarned) { duel.pausedWarned = true; duelToast(`${duel.opName}'s game looks paused (browser tab in the background?)`); }
+                    return;
+                }
+                if (stale > 8000) {
                     const c = duel.conn;
                     opponentGone(`${duel.opName} stopped responding`);
                     try { if (c) c.close(); } catch(e){}
